@@ -20,8 +20,8 @@
     <!-- 安全配置：强制使用HTTPS -->
     <domain-config cleartextTrafficPermitted="false">
         <!-- RustDesk官方服务器 -->
-        <domain includeSubdomains="true">rustdesk.com</domain>
-        <domain includeSubdomains="true">rs.rustdesk.com</domain>
+        <domain includeSubdomains="true">ycsit.cn</domain>
+        <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
         
         <!-- 信任系统证书 -->
         <trust-anchors>
