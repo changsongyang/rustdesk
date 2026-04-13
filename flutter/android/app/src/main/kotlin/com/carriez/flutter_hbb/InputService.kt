@@ -722,6 +722,7 @@ class InputService : AccessibilityService() {
         } else {
             info.flags = FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         }
+        info.packageNames = null // 不限制包名，保持功能完整性
         setServiceInfo(info)
         fakeEditTextForTextStateCalculation = EditText(this)
         // Size here doesn't matter, we won't show this view.

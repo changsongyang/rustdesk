@@ -329,9 +329,6 @@ class MainService : Service() {
         if (intent?.action == ACT_INIT_MEDIA_PROJECTION_AND_SERVICE) {
             createForegroundNotification()
 
-            if (intent.getBooleanExtra(EXT_INIT_FROM_BOOT, false)) {
-                FFI.startService()
-            }
             Log.d(logTag, "service starting: ${startId}:${Thread.currentThread()}")
             val mediaProjectionManager =
                 getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -423,11 +420,16 @@ class MainService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
-                Log.d(logTag, "createAudioRecorder fail")
+            // 检查录音权限
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
+                    Log.d(logTag, "createAudioRecorder fail")
+                } else {
+                    Log.d(logTag, "audio recorder start")
+                    audioRecordHandle.startAudioRecorder()
+                }
             } else {
-                Log.d(logTag, "audio recorder start")
-                audioRecordHandle.startAudioRecorder()
+                Log.d(logTag, "Record audio permission not granted, skipping audio capture")
             }
         }
         checkMediaPermission()
