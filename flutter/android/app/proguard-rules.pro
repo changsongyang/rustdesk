@@ -152,8 +152,5 @@
 -allowaccessmodification
 -mergeinterfacesaggressively
 
-# 移除未使用的资源
--shrinkresources
-
 # 移除未使用的代码
 -dontshrink
