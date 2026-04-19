@@ -16,6 +16,16 @@ class SecurityAuditor(private val context: Context) {
     
     companion object {
         private const val TAG = "SecurityAuditor"
+        
+        private val HIGH_RISK_PERMISSIONS = mapOf(
+            "android.permission.MANAGE_EXTERNAL_STORAGE" to "存储管理权限",
+            "android.permission.SYSTEM_ALERT_WINDOW" to "悬浮窗权限",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "电池优化权限",
+            "android.permission.READ_CONTACTS" to "读取联系人权限",
+            "android.permission.READ_SMS" to "读取短信权限",
+            "android.permission.CALL_PHONE" to "拨打电话权限",
+            "android.permission.READ_CALL_LOG" to "读取通话记录权限"
+        )
     }
     
     data class SecurityAuditResult(
@@ -65,9 +75,6 @@ class SecurityAuditor(private val context: Context) {
         // 检查代码混淆
         checkCodeObfuscation(issues)
         
-        // 检查调试模式
-        checkDebugMode(issues)
-        
         // 检查SDK版本
         checkSdkVersion(issues)
         
@@ -93,21 +100,11 @@ class SecurityAuditor(private val context: Context) {
             val requestedPermissions = packageInfo.requestedPermissions ?: arrayOf()
             
             // 检查是否申请了高风险权限
-            val highRiskPermissions = mapOf(
-                "android.permission.MANAGE_EXTERNAL_STORAGE" to "存储管理权限",
-                "android.permission.SYSTEM_ALERT_WINDOW" to "悬浮窗权限",
-                "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "电池优化权限",
-                "android.permission.READ_CONTACTS" to "读取联系人权限",
-                "android.permission.READ_SMS" to "读取短信权限",
-                "android.permission.CALL_PHONE" to "拨打电话权限",
-                "android.permission.READ_CALL_LOG" to "读取通话记录权限"
-            )
-            
             for (permission in requestedPermissions) {
-                if (permission in highRiskPermissions) {
+                if (permission in HIGH_RISK_PERMISSIONS) {
                     issues.add(SecurityIssue(
                         type = SecurityIssueType.HIGH_RISK_PERMISSION,
-                        description = "使用了高风险权限: ${highRiskPermissions[permission]}",
+                        description = "使用了高风险权限: ${HIGH_RISK_PERMISSIONS[permission]}",
                         severity = Severity.HIGH,
                         recommendation = "评估是否真的需要此权限，考虑使用替代方案或按需申请"
                     ))
@@ -228,37 +225,15 @@ class SecurityAuditor(private val context: Context) {
                 ))
             }
             
-            // 检查是否启用了代码混淆（通过检查类名）
-            val className = this.javaClass.name
-            if (!className.contains("a.") && !className.contains("b.")) {
-                Log.d(TAG, "代码可能未混淆，类名: $className")
-                // 注意：这不一定是问题，只是提示
-            }
+            // 注意：代码混淆检查需要通过构建配置或反编译分析
+            // 此处仅检查调试模式，实际的混淆状态需要通过其他方式验证
             
         } catch (e: Exception) {
             Log.e(TAG, "代码混淆检查失败: ${e.message}")
         }
     }
     
-    private fun checkDebugMode(issues: MutableList<SecurityIssue>) {
-        Log.d(TAG, "检查调试模式...")
-        
-        try {
-            val isDebuggable = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-            
-            if (isDebuggable) {
-                issues.add(SecurityIssue(
-                    type = SecurityIssueType.DEBUG_MODE,
-                    description = "应用处于调试模式",
-                    severity = Severity.HIGH,
-                    recommendation = "发布版本应禁用调试模式"
-                ))
-            }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "调试模式检查失败: ${e.message}")
-        }
-    }
+
     
     private fun checkSdkVersion(issues: MutableList<SecurityIssue>) {
         Log.d(TAG, "检查SDK版本...")

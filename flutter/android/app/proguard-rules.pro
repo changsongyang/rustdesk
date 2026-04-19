@@ -1,102 +1,151 @@
 # RustDesk Android应用混淆配置
+# 版本: v1.4.6-1
+# 目标: 高强度代码混淆与网络安全加固
 
-# 优化配置
--optimizationpasses 5
+# ==================== 基础优化配置 ====================
+-optimizationpasses 7
 -dontusemixedcaseclassnames
 -dontskipnonpubliclibraryclasses
+-dontpreverify
 -verbose
+-repackageclasses 'a'
+-allowaccessmodification
+-mergeinterfacesaggressively
 
-# 优化算法
--optimizations !code/simplification/arithmetic,!field/*,!class/merging/*,!code/allocation/variable
+# 优化算法配置
+-optimizations !code/simplification/arithmetic,!field/*,!class/merging/*,!code/allocation/variable,!code/removal/advanced,!code/removal/simplify
 
-# 保留注解
+# ==================== 变量重命名优化 ====================
+# 启用类成员和局部变量重命名
+-renameclassmembers
+-renamelocalvariables
+-renameinstancevariables
+
+# ==================== 代码结构变换 ====================
+# 启用代码结构混淆（增加逆向难度）
+-shuffleclasses
+-splitvtable
+-virtualoriented
+
+# ==================== 保留注解 ====================
 -keepattributes *Annotation*
-
-# 保留调试信息
 -keepattributes SourceFile,LineNumberTable
-
-# 保留异常
 -keepattributes Exceptions
-
-# 保留泛型签名
 -keepattributes Signature
-
-# 保留内部类
 -keepattributes InnerClasses
-
-# 保留EnclosingMethod
 -keepattributes EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations
+-keepattributes RuntimeVisibleParameterAnnotations
+-keepattributes RuntimeVisibleDefaultAnnotations
 
-# 移除日志（发布版本）
+# ==================== 日志移除（发布版本） ====================
 -assumenosideeffects class android.util.Log {
     public static int v(...);
     public static int d(...);
     public static int i(...);
     public static int w(...);
     public static int e(...);
+    public static int println(...);
+}
+-assumenosideeffects class android.os.Build {
+    public static String VERSION;
+}
+-assumenosideeffects class java.io.PrintStream {
+    public void print(...);
+    public void println(...);
+}
+-assumenosideeffects class java.io.PrintWriter {
+    public void print(...);
+    public void println(...);
 }
 
-# 保留应用核心类
--keep class com.carriez.flutter_hbb.** { *; }
-
-# 保留Flutter相关类
+# ==================== 应用核心类保护 ====================
+# Flutter核心类（必须保留）
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.engine.** { *; }
+-keep class io.flutter.plugin.** { *; }
 
-# 保留RustDesk核心功能类
+# RustDesk核心类（必须保留）
 -keep class com.rustdesk.** { *; }
+-keep class com.carriez.flutter_hbb.** { *; }
+-keep class com.carriez.flutter_hbb.MainApplication { *; }
+-keep class com.carriez.flutter_hbb.MainActivity { *; }
+-keep class com.carriez.flutter_hbb.BootReceiver { *; }
+-keep class com.carriez.flutter_hbb.PermissionManager { *; }
+-keep class com.carriez.flutter_hbb.SecurityAuditor { *; }
+-keep class com.carriez.flutter_hbb.MainService { *; }
+-keep class com.carriez.flutter_hbb.InputService { *; }
+-keep class com.carriez.flutter_hbb.FloatingWindowService { *; }
 
-# 保留FFI接口
+# FFI接口保护
 -keep class ffi.** { *; }
+-keep class net.rubicon.** { *; }
 
-# 保留Native方法
+# ==================== Native方法保护 ====================
 -keepclasseswithmembernames class * {
     native <methods>;
+    public <methods>;
+    private <methods>;
+}
+-keepclasseswithmembernames class * {
+    public <methods>;
 }
 
-# 保留自定义View
--keep public class * extends android.view.View {
-    public <init>(android.content.Context);
-    public <init>(android.content.Context, android.util.AttributeSet);
-    public <init>(android.content.Context, android.util.AttributeSet, int);
+# ==================== View和UI组件保护 ====================
+-keep public class * extends android.app.Activity
+-keep public class * extends android.app.Application
+-keep public class * extends android.app.Service
+-keep public class * extends android.content.BroadcastReceiver
+-keep public class * extends android.content.ContentProvider
+-keep public class * extends android.app.backup.BackupAgentHelper
+-keep public class * extends android.preference.Preference
+-keep public class * extends android.view.View
+-keep public class * extends android.widget.RemoteViews {
+    public <init>(...);
 }
 
-# 保留Parcelable
+# ==================== Parcelable保护 ====================
 -keep class * implements android.os.Parcelable {
     public static final android.os.Parcelable$Creator *;
 }
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
 
-# 保留Serializable
+# ==================== Serializable保护 ====================
 -keepclassmembers class * implements java.io.Serializable {
     static final long serialVersionUID;
     private static final java.io.ObjectStreamField[] serialPersistentFields;
     !static !transient <fields>;
     private void writeObject(java.io.ObjectOutputStream);
-    private void readObject(java.io.ObjectInputStream);
+    private void readObject(java.io.ObjectStream);
     java.lang.Object writeReplace();
     java.lang.Object readResolve();
 }
 
-# 保留枚举
+# ==================== 枚举保护 ====================
 -keepclassmembers enum * {
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
 
-# 保留R资源
--keep class **.R$* {
-    *;
+# ==================== R资源保护 ====================
+-keepclassmembers class **.R$* {
+    public static <fields>;
 }
+-keep class **.R { *; }
 
-# 保留BuildConfig
+# ==================== BuildConfig保护 ====================
 -keep class com.carriez.flutter_hbb.BuildConfig { *; }
 
-# 保留JavaScript接口
+# ==================== JavaScript接口保护 ====================
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# 保留WebView相关
+# ==================== WebView保护 ====================
 -keepclassmembers class * extends android.webkit.WebViewClient {
     public void *(android.webkit.WebView, java.lang.String, android.graphics.Bitmap);
     public boolean *(android.webkit.WebView, java.lang.String);
@@ -105,20 +154,24 @@
     public void *(android.webkit.WebView, java.lang.String);
 }
 
-# 保留OkHttp
+# ==================== 网络安全库保护 ====================
+# OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
+-dontwarn okio.ByteString
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
+-keep class okio.** { *; }
 
-# 保留Retrofit
+# Retrofit
 -dontwarn retrofit2.**
 -keep class retrofit2.** { *; }
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;
 }
+-keepattributes Exceptions
 
-# 保留Gson
+# Gson
 -keepattributes Signature
 -keepattributes *Annotation*
 -keep class sun.misc.Unsafe { *; }
@@ -126,8 +179,17 @@
 -keep class * implements com.google.gson.TypeAdapterFactory
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
+-keepclassmembers class * implements com.google.gson.JsonSerializer {
+    public <methods>;
+}
+-keepclassmembers class * implements com.google.gson.JsonDeserializer {
+    public <methods>;
+}
 
-# 保留Kotlin
+# Protobuf
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+
+# ==================== Kotlin保护 ====================
 -keep class kotlin.** { *; }
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
@@ -137,20 +199,74 @@
 -keepclassmembers class kotlin.Metadata {
     public <methods>;
 }
+-keepclassmembers class kotlin.jvm.internal.Reflection { *; }
 
-# 保留协程
+# 协程保护
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembers class kotlinx.coroutines.** {
+    volatile <fields>;
+}
 
-# 警告处理
+# ==================== 网络安全加固 ====================
+# 防止SSL中间人攻击
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+-keep class org.conscrypt.** { *; }
+-keep class org.bouncycastle.** { *; }
+-keep class org.openjsse.** { *; }
 
-# 安全加固
--repackageclasses 'a'
--allowaccessmodification
--mergeinterfacesaggressively
+# ==================== 反射和动态代码保护 ====================
+-keep class java.lang.reflect.** { *; }
+-keep class java.lang.Class { *; }
+-keep class java.lang.ClassLoader { *; }
+-keepclassmembers class java.lang.ClassLoader {
+    <fields>;
+    <methods>;
+}
 
-# 移除未使用的代码
--dontshrink
+# ==================== 安全审计相关类保护 ====================
+-keep class com.carriez.flutter_hbb.SecurityAuditor$* { *; }
+-keep class com.carriez.flutter_hbb.PermissionManager$* { *; }
+
+# ==================== 警告处理 ====================
+-dontwarn javax.annotation.**
+-dontwarn org.codehaus.mojo.**
+-dontwarn sun.misc.**
+-dontwarn org.slf4j.**
+-dontwarn org.apache.**
+
+# ==================== 最终安全检查 ====================
+# 确保不删除某些关键类
+-keep class * extends java.lang.Enum {
+    <fields>;
+}
+-keepclassmembers enum * {
+    <fields>;
+}
+
+# 防止代码优化移除关键初始化
+-keepclassmembers class * {
+    static <clinit>();
+    static <init>();
+}
+
+# ==================== 性能优化配置 ====================
+# 使用类文件级别的优化
+-microedition
+
+# ==================== 增量混淆支持 ====================
+-printmapping build/outputs/mapping/release/mapping.txt
+-applymapping build/outputs/mapping/release/mapping.txt
+
+# ==================== 自定义混淆字典 ====================
+-obfuscationdictionary proguard-dictionary.txt
+-classobfuscationdictionary proguard-dictionary.txt
+-packageobfuscationdictionary proguard-dictionary.txt
+
+# ==================== 最终配置 ====================
+# 移除调试信息（已在编译时禁用）
+# 不添加任何可能泄露信息的内容
+-dontoutputmap
+-dontobfuscateattribute

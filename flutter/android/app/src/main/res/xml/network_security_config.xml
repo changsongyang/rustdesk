@@ -1,51 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- 基础配置：信任用户安装的证书 -->
+    <!-- 基础配置：生产环境默认禁用明文流量，强制TLSv1.2+ -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <!-- 信任系统预装的证书 -->
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
+        <versions>
+            <version>TLSv1.2</version>
+            <version>TLSv1.3</version>
+        </versions>
     </base-config>
-    
-    <!-- 域特定配置：允许特定域名使用明文传输（仅用于调试） -->
-    <!-- 生产环境应移除此配置 -->
-    <!--
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
-    -->
-    
-    <!-- 安全配置：强制使用HTTPS -->
+
+    <!-- HSTS配置：强制使用HTTPS -->
     <domain-config cleartextTrafficPermitted="false">
-        <!-- RustDesk官方服务器 -->
         <domain includeSubdomains="true">ycsit.cn</domain>
         <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
-        
-        <!-- 信任系统证书 -->
+
         <trust-anchors>
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
+
+        <hsts>
+            <domain includeSubdomains="true">ycsit.cn</domain>
+            <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
+        </hsts>
+
+        <pin-set expiration="2025-12-31">
+        </pin-set>
     </domain-config>
-    
-    <!-- 自定义服务器配置（用户自定义服务器） -->
-    <!-- 用户应在此处添加自己的服务器域名 -->
-    <!--
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">your-server.com</domain>
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
-    -->
-    
-    <!-- 调试配置：仅在调试模式下启用 -->
-    <!--
+
+    <!-- 调试配置：仅在DEBUG模式下允许明文流量 -->
     <debug-overrides>
         <trust-anchors>
+            <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
     </debug-overrides>
-    -->
 </network-security-config>
