@@ -16,16 +16,10 @@
 -optimizations !code/simplification/arithmetic,!field/*,!class/merging/*,!code/allocation/variable,!code/removal/advanced,!code/removal/simplify
 
 # ==================== 变量重命名优化 ====================
-# 启用类成员和局部变量重命名
--renameclassmembers
--renamelocalvariables
--renameinstancevariables
+# ProGuard 会自动处理变量重命名，不需要额外指令
 
 # ==================== 代码结构变换 ====================
-# 启用代码结构混淆（增加逆向难度）
--shuffleclasses
--splitvtable
--virtualoriented
+# ProGuard 标准优化，不需要额外的结构变换指令
 
 # ==================== 保留注解 ====================
 -keepattributes *Annotation*
@@ -268,5 +262,3 @@
 # ==================== 最终配置 ====================
 # 移除调试信息（已在编译时禁用）
 # 不添加任何可能泄露信息的内容
--dontoutputmap
--dontobfuscateattribute
