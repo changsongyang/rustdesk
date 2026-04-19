@@ -246,10 +246,6 @@
     static <init>();
 }
 
-# ==================== 性能优化配置 ====================
-# 使用类文件级别的优化
--microedition
-
 # ==================== 增量混淆支持 ====================
 -printmapping build/outputs/mapping/release/mapping.txt
 -applymapping build/outputs/mapping/release/mapping.txt
