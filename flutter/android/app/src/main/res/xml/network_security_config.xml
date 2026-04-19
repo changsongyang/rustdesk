@@ -26,9 +26,6 @@
             <domain includeSubdomains="true">ycsit.cn</domain>
             <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
         </hsts>
-
-        <pin-set expiration="2025-12-31">
-        </pin-set>
     </domain-config>
 
     <!-- 调试配置：仅在DEBUG模式下允许明文流量 -->

@@ -246,10 +246,6 @@
     static <init>();
 }
 
-# ==================== 增量混淆支持 ====================
--printmapping build/outputs/mapping/release/mapping.txt
--applymapping build/outputs/mapping/release/mapping.txt
-
 # ==================== 自定义混淆字典 ====================
 -obfuscationdictionary proguard-dictionary.txt
 -classobfuscationdictionary proguard-dictionary.txt
