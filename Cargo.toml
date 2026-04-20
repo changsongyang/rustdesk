@@ -83,6 +83,19 @@ totp-rs = { version = "5.4", default-features = false, features = ["gen_secret",
 stunclient = "0.4"
 kcp-sys= { git = "https://github.com/rustdesk-org/kcp-sys"}
 reqwest = { version = "0.12", features = ["blocking", "socks", "json", "native-tls", "rustls-tls", "rustls-tls-native-roots", "gzip"], default-features=false }
+# Explicitly specify versions compatible with Rust 1.85.0
+home = "=0.5.9"
+image = "=0.24.7"
+time = "=0.3.34"
+# ICU dependencies compatible with Rust 1.85.0
+icu_collections = "=2.1.0"
+icu_locale_core = "=2.1.0"
+icu_normalizer = "=2.1.0"
+icu_properties = "=2.1.0"
+icu_provider = "=2.1.0"
+# DBus dependencies compatible with Rust 1.85.0
+zbus = "=3.15.2"
+zvariant = "=3.15.2"
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 # https://github.com/rustdesk/rustdesk/discussions/10197, not use cpal on linux
@@ -97,12 +110,15 @@ enigo = { path = "libs/enigo", features = [ "with_serde" ] }
 clipboard = { path = "libs/clipboard" }
 ctrlc = "3.2"
 # arboard = { version = "3.4", features = ["wayland-data-control"] }
-arboard = { git = "https://github.com/rustdesk-org/arboard", features = ["wayland-data-control"] }
+arboard = { path = "arboard-local", features = ["wayland-data-control"] }
 clipboard-master = { git = "https://github.com/rustdesk-org/clipboard-master" }
 portable-pty = { git = "https://github.com/rustdesk-org/wezterm", branch = "rustdesk/pty_based_0.8.1", package = "portable-pty" }
 
-system_shutdown = "4.0"
+system_shutdown = "=4.0.0"
 qrcode-generator = "4.1"
+
+# nokhwa is temporarily commented out due to image version compatibility issues
+# nokhwa = { git = "https://github.com/rustdesk-org/nokhwa.git", branch = "fix_from_raw_parts", features = ["input-native"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = [
@@ -179,7 +195,7 @@ ttf-parser = "0.25"
 libxdo-sys = "0.11"
 psimple = { package = "libpulse-simple-binding", version = "2.27" }
 pulse = { package = "libpulse-binding", version = "2.27" }
-rust-pulsectl = { git = "https://github.com/rustdesk-org/pulsectl" }
+rust-pulsectl = { path = "rust-pulsectl" }
 async-process = "1.7"
 evdev = { git="https://github.com/rustdesk-org/evdev" }
 dbus = "0.9"
@@ -206,6 +222,10 @@ android-wakelock = { git = "https://github.com/rustdesk-org/android-wakelock" }
 [workspace]
 members = ["libs/scrap", "libs/hbb_common", "libs/enigo", "libs/clipboard", "libs/virtual_display", "libs/virtual_display/dylib", "libs/portable", "libs/remote_printer"]
 exclude = ["vdi/host", "examples/custom_plugin"]
+
+[workspace.dependencies]
+# Force all dependencies to use image version compatible with Rust 1.85.0
+image = "=0.24.7"
 
 # Patch libxdo-sys to use a stub implementation that doesn't require libxdo
 # This allows building and running on systems without libxdo installed (e.g., Wayland-only)
