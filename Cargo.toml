@@ -109,8 +109,7 @@ sys-locale = "0.3"
 enigo = { path = "libs/enigo", features = [ "with_serde" ] }
 clipboard = { path = "libs/clipboard" }
 ctrlc = "3.2"
-# arboard = { version = "3.4", features = ["wayland-data-control"] }
-arboard = { path = "arboard-local", features = ["wayland-data-control"] }
+arboard = { version = "3.4", features = ["wayland-data-control"] }
 clipboard-master = { git = "https://github.com/rustdesk-org/clipboard-master" }
 portable-pty = { git = "https://github.com/rustdesk-org/wezterm", branch = "rustdesk/pty_based_0.8.1", package = "portable-pty" }
 
@@ -195,7 +194,7 @@ ttf-parser = "0.25"
 libxdo-sys = "0.11"
 psimple = { package = "libpulse-simple-binding", version = "2.27" }
 pulse = { package = "libpulse-binding", version = "2.27" }
-rust-pulsectl = { path = "rust-pulsectl" }
+rust-pulsectl = { git = "https://github.com/rustdesk-org/rust-pulsectl" }
 async-process = "1.7"
 evdev = { git="https://github.com/rustdesk-org/evdev" }
 dbus = "0.9"
