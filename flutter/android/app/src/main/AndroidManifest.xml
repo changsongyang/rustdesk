@@ -2,12 +2,43 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.carriez.flutter_hbb">
 
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 核心权限：网络通信 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 核心权限：前台服务 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- 核心权限：音频传输 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- 核心权限：通知（Android 13+） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- 存储权限：文件传输（Android 10及以下） -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <!-- 存储权限：文件传输（Android 13+） -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- 存储权限：完全文件访问（Android 11+，按需申请） -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- 系统权限：开机自启动 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- 系统权限：电池优化 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- 系统权限：保持唤醒（防止后台进程被系统终止） -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- 系统权限：悬浮窗显示 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <queries>
         <intent>
@@ -20,11 +51,23 @@
         android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher"
         android:label="RustDesk"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false">
 
-
+        <!-- 开机自启动接收器 -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <service
             android:name=".InputService"

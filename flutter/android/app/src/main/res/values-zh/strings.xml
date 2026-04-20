@@ -1,0 +1,56 @@
+<resources>
+    <string name="app_name">RustDesk</string>
+    <string name="accessibility_service_description">当 RustDesk 屏幕共享建立时，允许其他设备使用虚拟触摸控制您的手机</string>
+
+    <!-- Security Audit Strings -->
+    <string name="security_audit_started">正在开始安全审计...</string>
+    <string name="security_audit_completed">安全审计完成，发现 %d 个问题</string>
+    <string name="security_audit_failed">安全审计失败: %s</string>
+
+    <!-- High Risk Permission Descriptions -->
+    <string name="permission_manage_external_storage">存储管理权限</string>
+    <string name="permission_system_alert_window">悬浮窗权限</string>
+    <string name="permission_battery_optimization">电池优化权限</string>
+    <string name="permission_read_contacts">联系人读取权限</string>
+    <string name="permission_read_sms">短信读取权限</string>
+    <string name="permission_call_phone">电话拨打权限</string>
+    <string name="permission_read_call_log">通话记录读取权限</string>
+
+    <!-- Security Issue Descriptions -->
+    <string name="issue_high_risk_permission">使用了高风险权限: %s</string>
+    <string name="issue_missing_network_security">缺少网络安全配置</string>
+    <string name="issue_cleartext_traffic">允许明文 HTTP 流量</string>
+    <string name="issue_sensitive_data_storage">存储中检测到敏感数据: %s</string>
+    <string name="issue_password_file">检测到可能的密码存储: %s</string>
+    <string name="issue_debug_mode">应用处于调试模式</string>
+    <string name="issue_outdated_sdk">过时的目标 SDK 版本: %d</string>
+    <string name="issue_old_compile_sdk">旧的编译 SDK 版本: %d</string>
+
+    <!-- Recommendations -->
+    <string name="recommend_review_permission">请审查此权限是否真正需要，考虑使用替代方案或按需请求</string>
+    <string name="recommend_add_network_config">添加 network_security_config.xml 以强制使用 HTTPS</string>
+    <string name="recommend_disable_cleartext">禁用明文流量并强制使用 HTTPS</string>
+    <string name="recommend_use_keystore">使用 Android Keystore 加密敏感数据</string>
+    <string name="recommend_disable_debug">发布版本应禁用调试模式</string>
+    <string name="recommend_update_sdk">将目标 SDK 更新到最新稳定版本</string>
+
+    <!-- Permission Check Descriptions -->
+    <string name="checking_permissions">正在检查权限使用情况...</string>
+    <string name="permissions_check_completed">权限检查完成，发现 %d 个权限</string>
+    <string name="checking_network_security">正在检查网络通信安全...</string>
+    <string name="checking_data_storage">正在检查数据存储安全...</string>
+    <string name="checking_code_obfuscation">正在检查代码混淆...</string>
+    <string name="checking_sdk_version">正在检查 SDK 版本...</string>
+
+    <!-- Permission Manager Strings -->
+    <string name="permission_audio_title">麦克风权限</string>
+    <string name="permission_audio_description">远程会话期间音频传输所需，允许您听到远程设备的音频</string>
+    <string name="permission_storage_title">存储权限</string>
+    <string name="permission_storage_description">文件传输所需，允许您在远程设备之间传输文件</string>
+    <string name="permission_overlay_title">悬浮窗权限</string>
+    <string name="permission_overlay_description">显示远程会话控制窗口所需，以便快速访问</string>
+    <string name="permission_battery_title">电池优化权限</string>
+    <string name="permission_battery_description">防止应用被系统电池优化限制所需，确保后台运行</string>
+    <string name="permission_grant">授予</string>
+    <string name="permission_cancel">取消</string>
+</resources>
