@@ -1,7 +1,7 @@
 use super::{PrivacyMode, PrivacyModeState};
 use hbb_common::{anyhow::anyhow, ResultType};
 
-extern "C" {
+unsafe extern "C" {
     fn MacSetPrivacyMode(on: bool) -> bool;
 }
 

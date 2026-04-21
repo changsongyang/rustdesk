@@ -2,11 +2,11 @@
 name = "rustdesk"
 version = "1.5.1"
 authors = ["rustdesk <info@rustdesk.com>"]
-edition = "2021"
+edition = "2024"
 build= "build.rs"
 description = "RustDesk Remote Desktop"
 default-run = "rustdesk"
-rust-version = "1.75"
+rust-version = "1.95"
 
 [lib]
 name = "librustdesk"
@@ -83,9 +83,9 @@ totp-rs = { version = "5.4", default-features = false, features = ["gen_secret",
 stunclient = "0.4"
 kcp-sys= { git = "https://github.com/rustdesk-org/kcp-sys"}
 reqwest = { version = "0.12", features = ["blocking", "socks", "json", "native-tls", "rustls-tls", "rustls-tls-native-roots", "gzip"], default-features=false }
-# Explicitly specify versions compatible with Rust 1.85.0
+# Explicitly specify versions compatible with Rust 1.95.0
 home = "=0.5.9"
-image = "=0.24.7"
+image = "=0.25.10"
 time = "=0.3.34"
 # ICU dependencies compatible with Rust 1.85.0
 icu_collections = "=2.1.0"
@@ -109,7 +109,7 @@ sys-locale = "0.3"
 enigo = { path = "libs/enigo", features = [ "with_serde" ] }
 clipboard = { path = "libs/clipboard" }
 ctrlc = "3.2"
-arboard = { version = "3.4", features = ["wayland-data-control"] }
+arboard = { version = "3.6", features = ["wayland-data-control"] }
 clipboard-master = { git = "https://github.com/rustdesk-org/clipboard-master" }
 portable-pty = { git = "https://github.com/rustdesk-org/wezterm", branch = "rustdesk/pty_based_0.8.1", package = "portable-pty" }
 
@@ -177,7 +177,6 @@ foreign-types = "0.3"
 [target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))'.dependencies]
 tray-icon = { git = "https://github.com/tauri-apps/tray-icon", version = "0.22.0" }
 tao = { git = "https://github.com/rustdesk-org/tao", branch = "dev" }
-image = "0.24"
 
 [target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
 keepawake = { git = "https://github.com/rustdesk-org/keepawake-rs" }
@@ -194,7 +193,7 @@ ttf-parser = "0.25"
 libxdo-sys = "0.11"
 psimple = { package = "libpulse-simple-binding", version = "2.27" }
 pulse = { package = "libpulse-binding", version = "2.27" }
-rust-pulsectl = { git = "https://github.com/rustdesk-org/rust-pulsectl" }
+rust-pulsectl = { git = "https://github.com/rustdesk-org/pulsectl" }
 async-process = "1.7"
 evdev = { git="https://github.com/rustdesk-org/evdev" }
 dbus = "0.9"
@@ -224,7 +223,7 @@ exclude = ["vdi/host", "examples/custom_plugin"]
 
 [workspace.dependencies]
 # Force all dependencies to use image version compatible with Rust 1.85.0
-image = "=0.24.7"
+image = "0.25"
 
 # Patch libxdo-sys to use a stub implementation that doesn't require libxdo
 # This allows building and running on systems without libxdo installed (e.g., Wayland-only)

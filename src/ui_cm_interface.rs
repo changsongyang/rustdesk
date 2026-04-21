@@ -11,7 +11,7 @@ use hbb_common::fs::serialize_transfer_job;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use hbb_common::tokio::sync::mpsc::unbounded_channel;
 use hbb_common::{
-    allow_err, bail,
+    allow_err,
     config::{keys::OPTION_FILE_TRANSFER_MAX_FILES, Config},
     fs::{self, get_string, is_write_need_confirmation, new_send_confirm, DigestCheckResult},
     log,
@@ -26,7 +26,7 @@ use hbb_common::{
 };
 #[cfg(target_os = "windows")]
 use hbb_common::{
-    config::{keys::*, option2bool},
+    config::keys::*,
     tokio::sync::Mutex as TokioMutex,
 };
 use serde_derive::Serialize;

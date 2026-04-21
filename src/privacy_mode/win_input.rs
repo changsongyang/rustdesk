@@ -187,8 +187,8 @@ pub fn unhook() -> ResultType<()> {
     Ok(())
 }
 
-#[no_mangle]
-pub extern "system" fn privacy_mode_hook_keyboard(
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn privacy_mode_hook_keyboard(
     code: c_int,
     w_param: WPARAM,
     l_param: LPARAM,
@@ -243,8 +243,8 @@ pub extern "system" fn privacy_mode_hook_keyboard(
     unsafe { CallNextHookEx(NULL as _, code, w_param, l_param) }
 }
 
-#[no_mangle]
-pub extern "system" fn privacy_mode_hook_mouse(
+#[unsafe(no_mangle)]
+pub unsafe extern "system" fn privacy_mode_hook_mouse(
     code: c_int,
     w_param: WPARAM,
     l_param: LPARAM,

@@ -58,7 +58,7 @@ fn get_update_temp_dir_string() -> String {
 /// and cursor positioning/clipping operations.
 static CG_CURSOR_MUTEX: Mutex<()> = Mutex::new(());
 
-extern "C" {
+unsafe extern "C" {
     fn CGSCurrentCursorSeed() -> i32;
     fn CGEventCreate(r: *const c_void) -> *const c_void;
     fn CGEventGetLocation(e: *const c_void) -> CGPoint;

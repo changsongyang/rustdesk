@@ -322,41 +322,41 @@ impl Drop for PrivacyModeImpl {
 unsafe fn inject_dll<'a>(hproc: HANDLE, hthread: HANDLE, dll_file: &'a str) -> ResultType<()> {
     let dll_file_utf16: Vec<u16> = dll_file.encode_utf16().chain(Some(0).into_iter()).collect();
 
-    let buf = VirtualAllocEx(
+    let buf = unsafe { VirtualAllocEx(
         hproc,
         NULL as _,
         dll_file_utf16.len() * 2,
         MEM_COMMIT,
         PAGE_READWRITE,
-    );
+    ) };
     if buf.is_null() {
         bail!("Failed VirtualAllocEx");
     }
 
     let mut written: usize = 0;
-    if 0 == WriteProcessMemory(
+    if 0 == unsafe { WriteProcessMemory(
         hproc,
         buf,
         dll_file_utf16.as_ptr() as _,
         dll_file_utf16.len() * 2,
         &mut written,
-    ) {
+    ) } {
         bail!("Failed WriteProcessMemory");
     }
 
     let kernel32_modulename = CString::new("kernel32")?;
-    let hmodule = GetModuleHandleA(kernel32_modulename.as_ptr() as _);
+    let hmodule = unsafe { GetModuleHandleA(kernel32_modulename.as_ptr() as _) };
     if hmodule.is_null() {
         bail!("Failed GetModuleHandleA");
     }
 
     let load_librarya_name = CString::new("LoadLibraryW")?;
-    let load_librarya = GetProcAddress(hmodule, load_librarya_name.as_ptr() as _);
+    let load_librarya = unsafe { GetProcAddress(hmodule, load_librarya_name.as_ptr() as _) };
     if load_librarya.is_null() {
         bail!("Failed GetProcAddress of LoadLibraryW");
     }
 
-    if 0 == QueueUserAPC(Some(std::mem::transmute(load_librarya)), hthread, buf as _) {
+    if 0 == unsafe { QueueUserAPC(Some(std::mem::transmute(load_librarya)), hthread, buf as _) } {
         bail!("Failed QueueUserAPC");
     }
 

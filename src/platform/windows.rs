@@ -521,7 +521,7 @@ pub fn start_os_service() {
 
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 
-extern "C" {
+unsafe extern "C" {
     fn get_current_session(rdp: BOOL) -> DWORD;
     fn is_session_locked(session_id: DWORD) -> BOOL;
     fn LaunchProcessWin(
@@ -565,7 +565,7 @@ pub fn get_current_session_id(share_rdp: bool) -> DWORD {
     unsafe { get_current_session(if share_rdp { TRUE } else { FALSE }) }
 }
 
-extern "system" {
+unsafe extern "system" {
     fn BlockInput(v: BOOL) -> BOOL;
 }
 
@@ -847,7 +847,7 @@ async fn send_close_async(postfix: &str) -> ResultType<()> {
 // https://www.cnblogs.com/doutu/p/4892726.html
 pub fn send_sas() {
     #[link(name = "sas")]
-    extern "system" {
+    unsafe extern "system" {
         pub fn SendSAS(AsUser: BOOL);
     }
     unsafe {
@@ -1010,7 +1010,7 @@ pub fn get_active_username() -> String {
         return crate::username();
     }
 
-    extern "C" {
+    unsafe extern "C" {
         fn get_active_user(path: *mut u16, n: u32, rdp: BOOL) -> u32;
     }
     let buff_size = 256;
@@ -1036,7 +1036,7 @@ fn get_current_session_username() -> Option<String> {
 }
 
 fn get_session_username(session_id: u32) -> String {
-    extern "C" {
+    unsafe extern "C" {
         fn get_session_user_info(path: *mut u16, n: u32, session_id: u32) -> u32;
     }
     let buff_size = 256;
@@ -1054,7 +1054,7 @@ fn get_session_username(session_id: u32) -> String {
 }
 
 pub fn get_available_sessions(name: bool) -> Vec<WindowsSession> {
-    extern "C" {
+    unsafe extern "C" {
         fn get_available_session_ids(buf: *mut wchar_t, buf_size: c_int, include_rdp: bool);
     }
     const BUF_SIZE: c_int = 1024;
@@ -1172,7 +1172,7 @@ pub fn is_root() -> bool {
 }
 
 pub fn lock_screen() {
-    extern "system" {
+    unsafe extern "system" {
         pub fn LockWorkStation() -> BOOL;
     }
     unsafe {
@@ -1823,7 +1823,7 @@ pub fn block_input(v: bool) -> (bool, String) {
 }
 
 pub fn add_recent_document(path: &str) {
-    extern "C" {
+    unsafe extern "C" {
         fn AddRecentDocument(path: *const u16);
     }
     use std::os::windows::ffi::OsStrExt;
@@ -2827,7 +2827,7 @@ pub fn uninstall_cert() -> ResultType<()> {
 mod cert {
     use hbb_common::ResultType;
 
-    extern "C" {
+    unsafe extern "C" {
         fn DeleteRustDeskTestCertsW();
     }
     pub fn uninstall_cert() -> ResultType<()> {
@@ -3814,7 +3814,9 @@ pub fn try_set_window_foreground(window: HWND) {
             unsafe {
                 SetForegroundWindow(window);
             }
-            std::env::remove_var(env_key);
+            unsafe {
+                std::env::remove_var(env_key);
+            }
         }
     }
 }
@@ -3988,7 +3990,7 @@ pub fn get_printer_names() -> ResultType<Vec<String>> {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     fn PrintXPSRawData(printer_name: *const u16, raw_data: *const u8, data_size: c_ulong) -> DWORD;
 }
 

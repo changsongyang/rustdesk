@@ -98,13 +98,13 @@ thread_local! {
 }
 
 #[link(name = "X11")]
-extern "C" {
+unsafe extern "C" {
     fn XOpenDisplay(display_name: *const c_char) -> *mut c_void;
     // fn XCloseDisplay(d: *mut c_void) -> c_int;
 }
 
 #[link(name = "Xfixes")]
-extern "C" {
+unsafe extern "C" {
     // fn XFixesQueryExtension(dpy: *mut c_void, event: *mut c_int, error: *mut c_int) -> c_int;
     fn XFixesGetCursorImage(dpy: *mut c_void) -> *const xcb_xfixes_get_cursor_image;
     fn XFree(data: *mut c_void);
@@ -1274,7 +1274,7 @@ fn get_env_from_pid(name: &str, pid: &str) -> String {
 }
 
 #[link(name = "gtk-3")]
-extern "C" {
+unsafe extern "C" {
     fn gtk_main_quit();
 }
 
@@ -1333,13 +1333,13 @@ pub fn elevate(args: Vec<&str>) -> ResultType<bool> {
 type GtkSettingsPtr = *mut c_void;
 type GObjectPtr = *mut c_void;
 #[link(name = "gtk-3")]
-extern "C" {
+unsafe extern "C" {
     // fn gtk_init(argc: *mut c_int, argv: *mut *mut c_char);
     fn gtk_settings_get_default() -> GtkSettingsPtr;
 }
 
 #[link(name = "gobject-2.0")]
-extern "C" {
+unsafe extern "C" {
     fn g_object_get(object: GObjectPtr, first_property_name: *const c_char, ...);
 }
 

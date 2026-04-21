@@ -42,7 +42,7 @@ pub struct XRectangle {
 }
 
 #[link(name = "Xfixes")]
-extern "C" {
+unsafe extern "C" {
     fn XFixesCreateRegion(
         dpy: *mut Display,
         rectangles: *mut XRectangle,

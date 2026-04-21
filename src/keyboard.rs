@@ -421,7 +421,9 @@ fn should_block_relative_mouse_shortcut(key: Key, is_press: bool) -> bool {
 }
 
 fn start_grab_loop() {
-    std::env::set_var("KEYBOARD_ONLY", "y");
+    unsafe {
+        std::env::set_var("KEYBOARD_ONLY", "y");
+    }
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     std::thread::spawn(move || {
         let try_handle_keyboard = move |event: Event, key: Key, is_press: bool| -> Option<Event> {
@@ -959,7 +961,7 @@ pub fn legacy_keyboard_mode(event: &Event, mut key_event: KeyEvent) -> Vec<KeyEv
             .as_ref()
             .and_then(|unicode| unicode.name.clone());
         let mut chr = match &name {
-            Some(ref s) => {
+            Some(s) => {
                 if s.len() <= 2 {
                     // exclude chinese characters
                     s.chars().next().unwrap_or('\0')
