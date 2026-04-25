@@ -1292,7 +1292,7 @@ jobs:
   build-rustdesk-linux:
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
-    runs-on: ${{ matrix.job.on }}
+    runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -1628,7 +1628,7 @@ jobs:
 
   build-rustdesk-linux-sciter:
     if: ${{ inputs.upload-artifact }}
-    runs-on: ${{ matrix.job.on }}
+    runs-on: ${{ matrix.job.os }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
     strategy:
       fail-fast: false
@@ -1908,7 +1908,7 @@ jobs:
     needs:
       - build-rustdesk-linux
       - build-rustdesk-linux-sciter
-    runs-on: ${{ matrix.job.on }}
+    runs-on: ${{ matrix.job.os }}
     if: ${{ inputs.upload-artifact }}
     strategy:
       fail-fast: false
