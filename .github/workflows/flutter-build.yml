@@ -1351,7 +1351,7 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.job.target }}
@@ -1368,14 +1368,14 @@ jobs:
           sed -i  "s/\[\"cdylib\", \"staticlib\", \"rlib\"\]/\[\"cdylib\"\]/g" Cargo.toml
 
       - name: Restore bridge files
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/download-artifact@master
         with:
           name: bridge-artifact
           path: ./
 
       - name: Setup vcpkg with Github Actions binary cache
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: /opt/artifacts/vcpkg
@@ -1383,7 +1383,7 @@ jobs:
           doNotCache: false
 
       - name: Install vcpkg dependencies
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           sudo apt install -y libva-dev && apt show libva-dev
           if ! $VCPKG_ROOT/vcpkg \
@@ -1403,7 +1403,7 @@ jobs:
         shell: bash
 
       - name: Restore bridge files
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/download-artifact@master
         with:
           name: bridge-artifact
@@ -1412,7 +1412,7 @@ jobs:
       - uses: rustdesk-org/run-on-arch-action@amd64-support
         name: Build rustdesk
         id: vcpkg
-        if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true' }}
         with:
           arch: ${{ matrix.job.arch }}
           distro: ${{ matrix.job.distro }}
@@ -1602,7 +1602,7 @@ jobs:
       # old arch image does not make sense for arch since it is "arch" which always update to date
       # and failed to makepkg arm64 on x86_64
       - name: Patch archlinux PKGBUILD
-        if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           sed -i "s/x86_64/${{ matrix.job.arch }}/g" res/PKGBUILD
           if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
@@ -1610,7 +1610,7 @@ jobs:
           fi
 
       - name: Build archlinux package
-        if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true' }}
         uses: rustdesk-org/arch-makepkg-action@master
         with:
           packages:
@@ -1618,7 +1618,7 @@ jobs:
             cd res && HBB=`pwd`/.. FLUTTER=1 makepkg -f
 
       - name: Publish archlinux package
-        if: matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ matrix.job.arch == 'x86_64' && env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1669,7 +1669,7 @@ jobs:
           submodules: recursive
 
       - name: Modify vcpkg.json for armv7
-        if: matrix.job.vcpkg-triplet == 'arm-linux'
+        if: ${{ matrix.job.vcpkg-triplet == 'arm-linux' }}
         run: |
           # Replace the baseline in vcpkg.json with ARMV7_VCPKG_COMMIT_ID for armv7 builds
           sed -i 's/"baseline": ".*"/"baseline": "${{ env.ARMV7_VCPKG_COMMIT_ID }}"/' vcpkg.json
