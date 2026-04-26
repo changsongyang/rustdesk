@@ -227,14 +227,14 @@ jobs:
           path: "./rustdesk"
 
       - name: Upload unsigned
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-unsigned-windows-${{ matrix.job.arch }}
           path: rustdesk
 
       - name: Sign rustdesk files
-        if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2' }}
         shell: bash
         run: |
           pip3 install requests argparse
@@ -242,7 +242,7 @@ jobs:
 
       - name: Build self-extracted executable
         shell: bash
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           sed -i '/dpiAware/d' res/manifest.xml
           pushd ./libs/portable
@@ -256,7 +256,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build msi
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           pushd ./res/msi
           python preprocess.py --arp -d ../../rustdesk
@@ -266,14 +266,14 @@ jobs:
           sha256sum ../../SignOutput/rustdesk-*.msi
 
       - name: Sign rustdesk self-extracted file
-        if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2' }}
         shell: bash
         run: |
           BASE_URL=${{ env.SIGN_BASE_URL }} SECRET_KEY=${{ secrets.SIGN_SECRET_KEY }} python3 res/job.py sign_files ./SignOutput
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
@@ -393,14 +393,14 @@ jobs:
           fi
 
       - name: Upload unsigned
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-unsigned-windows-${{ matrix.job.arch }}
           path: Release
 
       - name: Sign rustdesk files
-        if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2' }}
         shell: bash
         run: |
           pip3 install requests argparse
@@ -418,14 +418,14 @@ jobs:
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.exe
 
       - name: Sign rustdesk self-extracted file
-        if: env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' && env.SIGN_BASE_URL != '-2' }}
         shell: bash
         run: |
           BASE_URL=${{ env.SIGN_BASE_URL }} SECRET_KEY=${{ secrets.SIGN_SECRET_KEY }} python3 res/job.py sign_files ./SignOutput/
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
@@ -589,7 +589,7 @@ jobs:
           submodules: recursive
 
       - name: Import the codesign cert
-        if: env.MACOS_P12_BASE64 != null
+        if: ${{ env.MACOS_P12_BASE64 != null }}
         uses: apple-actions/import-codesign-certs@v1
         with:
           p12-file-base64: ${{ secrets.MACOS_P12_BASE64 }}
@@ -597,13 +597,13 @@ jobs:
           keychain: rustdesk
 
       - name: Check sign and import sign key
-        if: env.MACOS_P12_BASE64 != null
+        if: ${{ env.MACOS_P12_BASE64 != null }}
         run: |
           security default-keychain -s rustdesk.keychain
           security find-identity -v
 
       - name: Import notarize key
-        if: env.MACOS_P12_BASE64 != null
+        if: ${{ env.MACOS_P12_BASE64 != null }}
         uses: timheuer/base64-to-file@v1.2
         with:
           # https://gregoryszorc.com/docs/apple-codesign/stable/apple_codesign_rcodesign.html#notarizing-and-stapling
@@ -612,7 +612,7 @@ jobs:
           encodedString: ${{ secrets.MACOS_NOTARIZE_JSON }}
 
       - name: Install rcodesign tool
-        if: env.MACOS_P12_BASE64 != null
+        if: ${{ env.MACOS_P12_BASE64 != null }}
         shell: bash
         run: |
           pushd /tmp
@@ -722,7 +722,7 @@ jobs:
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
       - name: create unsigned dmg
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
@@ -730,14 +730,14 @@ jobs:
           create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
 
       - name: Upload unsigned macOS app
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-unsigned-macos-${{ matrix.job.arch }}
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg # can not upload the directory directly or tar.gz, which destroy the link structure, causing the codesign failed
 
       - name: Codesign app and create signed dmg
-        if: env.MACOS_P12_BASE64 != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.MACOS_P12_BASE64 != null && env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           # Patch create-dmg to give more attempts to unmount image
           CREATE_DMG="$(command -v create-dmg)"
@@ -755,14 +755,14 @@ jobs:
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
 
       - name: Rename rustdesk
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           for name in rustdesk*??.dmg; do
               mv "$name" "${name%%.dmg}-${{ matrix.job.arch }}.dmg"
           done
 
       - name: Publish DMG package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1068,7 +1068,7 @@ jobs:
 
       - uses: r0adkll/sign-android-release@v1
         name: Sign app APK
-        if: env.ANDROID_SIGNING_KEY != null
+        if: ${{ env.ANDROID_SIGNING_KEY != null }}
         id: sign-rustdesk
         with:
           releaseDirectory: ./signed-apk
@@ -1081,14 +1081,14 @@ jobs:
           BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
 
       - name: Upload Artifacts
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1097,7 +1097,7 @@ jobs:
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1252,7 +1252,7 @@ jobs:
 
       - uses: r0adkll/sign-android-release@v1
         name: Sign app APK
-        if: env.ANDROID_SIGNING_KEY != null
+        if: ${{ env.ANDROID_SIGNING_KEY != null }}
         id: sign-rustdesk
         with:
           releaseDirectory: ./signed-apk
@@ -1265,14 +1265,14 @@ jobs:
           BUILD_TOOLS_VERSION: ${{ env.ANDROID_SIGN_TOOL_VERSION }}
 
       - name: Upload Artifacts
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: actions/upload-artifact@master
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1281,7 +1281,7 @@ jobs:
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1582,7 +1582,7 @@ jobs:
             done
 
       - name: Publish debian/rpm package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1593,7 +1593,7 @@ jobs:
 
       - name: Upload deb
         uses: actions/upload-artifact@master
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
@@ -1838,7 +1838,7 @@ jobs:
           done
 
       - name: Publish debian package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -1848,7 +1848,7 @@ jobs:
 
       - name: Upload deb
         uses: actions/upload-artifact@master
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
@@ -1895,7 +1895,7 @@ jobs:
           sudo appimage-builder --skip-tests --recipe ./AppImageBuilder-${{ matrix.job.arch }}.yml
 
       - name: Publish appimage package
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
@@ -2053,7 +2053,7 @@ jobs:
           popd
 
       - name: Publish web
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           prerelease: true
