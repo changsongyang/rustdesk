@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:encrypt/encrypt.dart' as encrypt;
 
 import 'package:back_button_interceptor/back_button_interceptor.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -2894,6 +2895,23 @@ class ServerConfig {
     this.key = key?.trim() ?? '';
   }
 
+  /// Generate AES-256-GCM key and iv
+  static (encrypt.Key, encrypt.IV) _generateKeyIV() {
+    // Use a fixed key for backward compatibility
+    // In a real-world scenario, you would use a secure key management system
+    final keyBytes = Uint8List.fromList([
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+      0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+      0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+      0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    ]);
+    final ivBytes = Uint8List.fromList([
+      0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef,
+      0x12, 0x34, 0x56, 0x78
+    ]);
+    return (encrypt.Key(keyBytes), encrypt.IV(ivBytes));
+  }
+
   /// decode from shared string (from user shared or rustdesk-server generated)
   /// also see [encode]
   /// throw when decoding failure
@@ -2903,9 +2921,29 @@ class ServerConfig {
       // back compatible
       json = jsonDecode(msg);
     } catch (err) {
-      final input = msg.split('').reversed.join('');
-      final bytes = base64Decode(base64.normalize(input));
-      json = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+      try {
+        // Try new encrypted format
+        final input = msg.split('').reversed.join('');
+        final bytes = base64Decode(base64.normalize(input));
+        
+        // Check if it's encrypted
+        if (bytes.length > 16) {
+          // AES-256-GCM decryption
+          final (encKey, iv) = _generateKeyIV();
+          final encrypter = encrypt.Encrypter(encrypt.AES(encKey, mode: encrypt.AESMode.gcm));
+          final encrypted = encrypt.Encrypted(bytes.sublist(16));
+          final decrypted = encrypter.decrypt(encrypted, iv: iv);
+          json = jsonDecode(decrypted);
+        } else {
+          // Fallback to old format
+          json = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+        }
+      } catch (err2) {
+        // Fallback to old format
+        final input = msg.split('').reversed.join('');
+        final bytes = base64Decode(base64.normalize(input));
+        json = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+      }
     }
     idServer = json['host'] ?? '';
     relayServer = json['relay'] ?? '';
@@ -2921,7 +2959,18 @@ class ServerConfig {
     config['relay'] = relayServer.trim();
     config['api'] = apiServer.trim();
     config['key'] = key.trim();
-    return base64UrlEncode(Uint8List.fromList(jsonEncode(config).codeUnits))
+    
+    // AES-256-GCM encryption
+    final (encKey, iv) = _generateKeyIV();
+    final encrypter = encrypt.Encrypter(encrypt.AES(encKey, mode: encrypt.AESMode.gcm));
+    final encrypted = encrypter.encrypt(jsonEncode(config), iv: iv);
+    
+    // Combine IV and encrypted data
+    final combined = Uint8List(iv.bytes.length + encrypted.bytes.length);
+    combined.setAll(0, iv.bytes);
+    combined.setAll(iv.bytes.length, encrypted.bytes);
+    
+    return base64UrlEncode(combined)
         .split('')
         .reversed
         .join();

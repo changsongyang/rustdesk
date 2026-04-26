@@ -645,6 +645,14 @@ pub fn set_permanent_password_with_result(password: String) -> bool {
     if config::Config::is_disable_change_permanent_password() {
         return false;
     }
+    
+    // Check if deep link password setting is allowed
+    let allow_deep_link_password = config::option2bool("allow-deep-link-password", &config::Config::get_option("allow-deep-link-password"));
+    if !allow_deep_link_password {
+        log::info!("Deep link password setting is disabled");
+        return false;
+    }
+    
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
         config::Config::set_permanent_password(&password);

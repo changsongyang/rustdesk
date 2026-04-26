@@ -146,7 +146,11 @@ async fn start_hbbs_sync_async() {
                     }
                     let ab_password = Config::get_option(keys::OPTION_PRESET_ADDRESS_BOOK_PASSWORD);
                     if !ab_password.is_empty() {
-                        v[keys::OPTION_PRESET_ADDRESS_BOOK_PASSWORD] = json!(ab_password);
+                        // Encrypt address book password before transmission
+                        use hbb_common::password_security::{encrypt_str_or_original, PASSWORD_ENC_VERSION};
+                        const ENCRYPT_MAX_LEN: usize = 1024;
+                        let encrypted_password = encrypt_str_or_original(&ab_password, PASSWORD_ENC_VERSION, ENCRYPT_MAX_LEN);
+                        v[keys::OPTION_PRESET_ADDRESS_BOOK_PASSWORD] = json!(encrypted_password);
                     }
                     let ab_note = Config::get_option(keys::OPTION_PRESET_ADDRESS_BOOK_NOTE);
                     if !ab_note.is_empty() {
@@ -285,6 +289,13 @@ fn heartbeat_url() -> String {
 }
 
 fn handle_config_options(config_options: HashMap<String, String>) {
+    // Check if remote config modification is allowed
+    let allow_remote_config_modification = config::option2bool("allow-remote-config-modification", &Config::get_option("allow-remote-config-modification"));
+    if !allow_remote_config_modification {
+        log::info!("Remote config modification is disabled, skipping strategy update");
+        return;
+    }
+    
     let mut options = Config::get_options();
     let default_settings = config::DEFAULT_SETTINGS.read().unwrap().clone();
     config_options
