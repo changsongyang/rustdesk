@@ -1,178 +1,215 @@
 #!/bin/bash
-# RustDesk 本地环境配置脚本
-# 此脚本用于配置本地开发环境，确保与CI环境一致
+"""
+RustDesk 本地环境设置脚本
+功能：
+1. 自动安装必需工具
+2. 配置环境变量
+3. 验证环境一致性
+"""
 
 set -e
 
-# 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 版本配置（与CI环境一致）
-RUST_VERSION="1.95"
-FLUTTER_VERSION="3.24.5"
-FLUTTER_RUST_BRIDGE_VERSION="1.80.1"
-VCPKG_COMMIT_ID="120deac3062162151622ca4860575a33844ba10b"
+log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  RustDesk 本地环境配置脚本${NC}"
-echo -e "${GREEN}========================================${NC}"
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
-# 检查操作系统
-echo -e "${YELLOW}检查操作系统...${NC}"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    OS="macOS"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    OS="Linux"
-elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    OS="Windows"
-else
-    echo -e "${RED}不支持的操作系统: $OSTYPE${NC}"
-    exit 1
-fi
-echo -e "${GREEN}检测到操作系统: $OS${NC}"
-
-# 检查并安装 Rust
-echo -e "${YELLOW}检查 Rust 安装...${NC}"
-if command -v rustup &> /dev/null; then
-    CURRENT_RUST_VERSION=$(rustc --version | grep -oP '\d+\.\d+' | head -1)
-    echo -e "${GREEN}已安装 Rust: $(rustc --version)${NC}"
-    
-    # 检查是否需要切换到指定版本
-    if [[ "$CURRENT_RUST_VERSION" != "$RUST_VERSION" ]]; then
-        echo -e "${YELLOW}需要切换到 Rust $RUST_VERSION...${NC}"
-        rustup install $RUST_VERSION
-        rustup default $RUST_VERSION
-    fi
-else
-    echo -e "${YELLOW}未检测到 Rust，正在安装...${NC}"
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source "$HOME/.cargo/env"
-    rustup install $RUST_VERSION
-    rustup default $RUST_VERSION
-fi
-
-# 检查并安装 Flutter
-echo -e "${YELLOW}检查 Flutter 安装...${NC}"
-if command -v flutter &> /dev/null; then
-    CURRENT_FLUTTER_VERSION=$(flutter --version | grep -oP 'Flutter \K[\d.]+' | head -1)
-    echo -e "${GREEN}已安装 Flutter: $(flutter --version)${NC}"
-    
-    # 注意：Flutter版本检查可能不精确，这里只做提示
-    if [[ "$CURRENT_FLUTTER_VERSION" != "$FLUTTER_VERSION" ]]; then
-        echo -e "${YELLOW}建议使用 Flutter $FLUTTER_VERSION (当前: $CURRENT_FLUTTER_VERSION)${NC}"
-    fi
-else
-    echo -e "${YELLOW}未检测到 Flutter，正在安装...${NC}"
-    
-    # 根据操作系统选择安装方式
-    if [[ "$OS" == "macOS" ]]; then
-        brew install flutter
-    elif [[ "$OS" == "Linux" ]]; then
-        git clone https://github.com/flutter/flutter.git -b stable "$HOME/flutter"
-        export PATH="$HOME/flutter/bin:$PATH"
-    elif [[ "$OS" == "Windows" ]]; then
-        echo -e "${RED}Windows 请从 https://flutter.dev/docs/get-started/install/windows 下载 Flutter${NC}"
-        exit 1
-    fi
-    
-    flutter doctor
-fi
-
-# 检查并安装 Python
-echo -e "${YELLOW}检查 Python 安装...${NC}"
-if command -v python3 &> /dev/null; then
-    PYTHON_VERSION=$(python3 --version | grep -oP '\d+\.\d+' | head -1)
-    echo -e "${GREEN}已安装 Python: $(python3 --version)${NC}"
-    
-    # 检查 Python 版本是否满足要求 (>=3.8)
-    PYTHON_MAJOR=$(python3 --version | grep -oP '\d+' | head -1)
-    if [[ "$PYTHON_MAJOR" -lt 3 ]]; then
-        echo -e "${RED}需要 Python 3.x，当前版本不满足要求${NC}"
-        exit 1
-    fi
-else
-    echo -e "${YELLOW}未检测到 Python3，正在安装...${NC}"
-    
-    if [[ "$OS" == "macOS" ]]; then
-        brew install python3
-    elif [[ "$OS" == "Linux" ]]; then
-        sudo apt-get update && sudo apt-get install -y python3 python3-pip
-    elif [[ "$OS" == "Windows" ]]; then
-        echo -e "${RED}Windows 请从 https://www.python.org/downloads/ 下载 Python${NC}"
-        exit 1
-    fi
-fi
-
-# 检查并安装 vcpkg
-echo -e "${YELLOW}检查 vcpkg 安装...${NC}"
-if [ -d "$HOME/vcpkg" ]; then
-    echo -e "${GREEN}已安装 vcpkg${NC}"
-    echo -e "${YELLOW}检查 vcpkg 版本...${NC}"
-    cd "$HOME/vcpkg" && git fetch origin && git checkout $VCPKG_COMMIT_ID
-else
-    echo -e "${YELLOW}未检测到 vcpkg，正在安装...${NC}"
-    cd "$HOME"
-    git clone https://github.com/microsoft/vcpkg.git
-    cd vcpkg
-    git checkout $VCPKG_COMMIT_ID
-    
-    # 根据操作系统执行安装脚本
-    if [[ "$OS" == "Windows" ]]; then
-        ./bootstrap-vcpkg.bat
+# 检测操作系统
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "osx"
+    elif [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+        echo "windows"
     else
-        ./bootstrap-vcpkg.sh
+        echo "linux"
     fi
-fi
+}
+
+OS=$(detect_os)
+log_info "检测到操作系统: $OS"
+
+# 检查 Rust
+check_rust() {
+    if command -v rustc &> /dev/null; then
+        RUST_VERSION=$(rustc --version)
+        log_info "Rust 已安装: $RUST_VERSION"
+        return 0
+    fi
+    return 1
+}
+
+# 安装 Rust
+install_rust() {
+    if ! check_rust; then
+        log_info "安装 Rust..."
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        
+        # 加载 rustup 环境
+        if [ -f "$HOME/.cargo/env" ]; then
+            source "$HOME/.cargo/env"
+        fi
+        
+        # 安装指定版本
+        log_info "安装 Rust 1.95..."
+        rustup install 1.95
+        rustup default 1.95
+        
+        log_info "Rust 安装完成"
+    fi
+}
+
+# 检查 Flutter
+check_flutter() {
+    if command -v flutter &> /dev/null; then
+        FLUTTER_VERSION=$(flutter --version | head -1)
+        log_info "Flutter 已安装: $FLUTTER_VERSION"
+        return 0
+    fi
+    return 1
+}
+
+# 检查 vcpkg
+check_vcpkg() {
+    if [ -n "$VCPKG_ROOT" ] && [ -d "$VCPKG_ROOT" ]; then
+        log_info "vcpkg 已配置: $VCPKG_ROOT"
+        return 0
+    fi
+    return 1
+}
 
 # 设置环境变量
-echo -e "${YELLOW}配置环境变量...${NC}"
-export VCPKG_ROOT="$HOME/vcpkg"
-export VCPKG_INSTALL_ROOT="$HOME/vcpkg/installed"
+setup_env_vars() {
+    log_info "设置环境变量..."
+    
+    CARGO_BIN="$HOME/.cargo/bin"
+    if [ -d "$CARGO_BIN" ]; then
+        export PATH="$CARGO_BIN:$PATH"
+        log_info "已添加到 PATH: $CARGO_BIN"
+    fi
+    
+    # 如果 vcpkg 不存在，提示用户
+    if [ -z "$VCPKG_ROOT" ]; then
+        log_warning "VCPKG_ROOT 未设置，请运行 vcpkg 安装后设置此环境变量"
+        log_warning "推荐: export VCPKG_ROOT=$PROJECT_ROOT/vcpkg"
+    fi
+}
 
-# 添加到 shell 配置文件
-SHELL_CONFIG=""
-if [[ "$OS" == "macOS" ]]; then
-    SHELL_CONFIG="$HOME/.zshrc"
-elif [[ "$OS" == "Linux" ]]; then
-    SHELL_CONFIG="$HOME/.bashrc"
-elif [[ "$OS" == "Windows" ]]; then
-    SHELL_CONFIG="$HOME/.bash_profile"
-fi
+# 验证环境
+validate_env() {
+    log_info "验证环境..."
+    
+    local all_ok=true
+    
+    # 验证 Rust
+    if ! check_rust; then
+        log_error "Rust 不可用"
+        all_ok=false
+    fi
+    
+    # 验证 Cargo
+    if ! command -v cargo &> /dev/null; then
+        log_error "Cargo 不可用"
+        all_ok=false
+    else
+        log_info "Cargo 可用: $(cargo --version)"
+    fi
+    
+    # 验证 Python
+    if ! command -v python3 &> /dev/null; then
+        log_error "Python3 不可用"
+        all_ok=false
+    else
+        log_info "Python3 可用: $(python3 --version)"
+    fi
+    
+    if [ "$all_ok" = true ]; then
+        log_info "环境验证通过 ✓"
+    else
+        log_error "环境验证失败 ✗"
+        return 1
+    fi
+}
 
-# 添加环境变量到 shell 配置
-if [ -n "$SHELL_CONFIG" ]; then
-    echo "" >> "$SHELL_CONFIG"
-    echo "# RustDesk 环境变量" >> "$SHELL_CONFIG"
-    echo "export VCPKG_ROOT=\"$HOME/vcpkg\"" >> "$SHELL_CONFIG"
-    echo "export VCPKG_INSTALL_ROOT=\"$HOME/vcpkg/installed\"" >> "$SHELL_CONFIG"
-    echo -e "${GREEN}环境变量已添加到 $SHELL_CONFIG${NC}"
-fi
+# 显示帮助
+show_help() {
+    echo "RustDesk 本地环境设置脚本"
+    echo ""
+    echo "使用方法:"
+    echo "  $0 [选项]"
+    echo ""
+    echo "选项:"
+    echo "  --install-rust    安装 Rust"
+    echo "  --check-only      仅检查环境，不安装"
+    echo "  --help            显示此帮助信息"
+    echo ""
+    echo "示例:"
+    echo "  $0                    # 检查并设置环境"
+    echo "  $0 --install-rust     # 安装 Rust 并设置环境"
+    echo "  $0 --check-only       # 仅检查环境"
+}
 
-# 验证安装
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  环境配置验证${NC}"
-echo -e "${GREEN}========================================${NC}"
+# 主函数
+main() {
+    cd "$PROJECT_ROOT"
+    
+    local install_rust_flag=false
+    local check_only=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --install-rust)
+                install_rust_flag=true
+                shift
+                ;;
+            --check-only)
+                check_only=true
+                shift
+                ;;
+            --help)
+                show_help
+                return 0
+                ;;
+            *)
+                log_error "未知选项: $1"
+                show_help
+                return 1
+                ;;
+        esac
+    done
+    
+    log_info "RustDesk 本地环境设置脚本"
+    log_info "项目根目录: $PROJECT_ROOT"
+    echo ""
+    
+    # 检查 Rust
+    if [ "$install_rust_flag" = true ]; then
+        install_rust
+    else
+        if ! check_rust; then
+            log_warning "Rust 未安装，使用 --install-rust 安装"
+        fi
+    fi
+    
+    # 设置环境变量
+    setup_env_vars
+    
+    # 如果不是仅检查模式，继续验证
+    if [ "$check_only" = false ]; then
+        validate_env
+    fi
+    
+    echo ""
+    log_info "完成！请运行以下命令以加载环境变量:"
+    echo "  source ~/.cargo/env  # Linux/macOS"
+    echo ""
+    log_info "运行构建辅助脚本以进行诊断:"
+    echo "  python3 scripts/build_helper.py --diagnose"
+}
 
-echo -e "${YELLOW}验证 Rust...${NC}"
-rustc --version
-cargo --version
-
-echo -e "${YELLOW}验证 Flutter...${NC}"
-flutter --version
-
-echo -e "${YELLOW}验证 Python...${NC}"
-python3 --version
-
-echo -e "${YELLOW}验证 vcpkg...${NC}"
-"$HOME/vcpkg/vcpkg" version
-
-echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  本地环境配置完成！${NC}"
-echo -e "${GREEN}========================================${NC}"
-echo -e "${YELLOW}下一步：${NC}"
-echo -e "1. 运行 'source ~/.cargo/env' 加载环境变量"
-echo -e "2. 运行 'vcpkg install' 安装项目依赖"
-echo -e "3. 运行 './build.py --flutter' 构建项目"
+main "$@"
