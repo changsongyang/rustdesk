@@ -1814,6 +1814,8 @@ jobs:
             git config --global --add safe.directory "*"
             # set python3.7 as default python3
             update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 1
+            # Add cargo to PATH (required because install and run stages are separate)
+            export PATH="$HOME/.cargo/bin:$PATH"
             # add built CMake to PATH and set VCPKG_FORCE_SYSTEM_BINARIES Afor arm-linux
             if [ "${{ matrix.job.vcpkg-triplet }}" = "arm-linux" ]; then
               export PATH="/opt/cmake-${{ env.SCITER_ARMV7_CMAKE_VERSION }}-linux-armhf/bin:$PATH"
