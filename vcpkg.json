@@ -108,6 +108,14 @@
     {
       "name": "libvpx",
       "version": "1.15.2"
+    },
+    {
+      "name": "libyuv",
+      "version": "1857"
+    },
+    {
+      "name": "opus",
+      "version": "1.5.2"
     }
   ]
 }
