@@ -116,10 +116,6 @@
     {
       "name": "opus",
       "version": "1.5.2"
-    },
-    {
-      "name": "libjpeg-turbo",
-      "version": "3.1.0"
     }
   ]
 }
