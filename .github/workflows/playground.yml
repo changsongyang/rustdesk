@@ -163,6 +163,18 @@ jobs:
           channel: "stable"
           flutter-version: ${{ matrix.job.flutter }}
 
+      - name: 配置 Flutter 缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            ~/.pubrc
+            flutter/bin/cache
+          key: flutter-${{ runner.os }}-${{ matrix.job.flutter }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            flutter-${{ runner.os }}-${{ matrix.job.flutter }}-
+            flutter-${{ runner.os }}-
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
         with:
@@ -173,6 +185,28 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
+          save-if: true
+
+      - name: 配置 Cargo 缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/git/checkouts
+          key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-registry-${{ runner.os }}-
+            cargo-registry-
+
+      - name: 配置 Git 配置缓存
+        run: |
+          git config --global core.preloadindex true
+          git config --global core.fscache true
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 1000
+          git config --global http.lowSpeedTime 60
 
       - name: Install flutter rust bridge deps
         shell: bash
@@ -188,6 +222,18 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+
+      - name: 配置 vcpkg 依赖缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vcpkg
+            ${{ env.HOME }}/.cache/vcpkg
+            /opt/artifacts/vcpkg/installed
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT_ID }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT_ID }}-
+            vcpkg-${{ runner.os }}-
 
       - name: Install vcpkg dependencies
         run: |
