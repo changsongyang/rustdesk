@@ -192,18 +192,6 @@ jobs:
       - name: Install vcpkg dependencies
         run: |
           $VCPKG_ROOT/vcpkg install --x-install-root="$VCPKG_ROOT/installed"
-          
-      - name: Restore from cache and install vcpkg
-        uses: lukka/run-vcpkg@v7
-        if: false
-        with:
-          setupOnly: true
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
-
-      - name: Install vcpkg dependencies
-        if: false
-        run: |
-          $VCPKG_ROOT/vcpkg install libvpx libyuv opus aom
 
       - name: Show version information (Rust, cargo, Clang)
         shell: bash
@@ -217,7 +205,20 @@ jobs:
 
       - name: Build rustdesk
         run: |
+          set -x
+          set -e
+          trap 'echo "构建失败，正在收集诊断信息..."; df -h; du -sh target 2>/dev/null || true' ERR
+          echo "开始构建 RustDesk..."
+          echo "构建环境信息："
+          rustup -V
+          rustup toolchain list
+          rustup show
+          cargo -V
+          echo "开始执行构建脚本..."
           ./build.py --flutter ${{ matrix.job.extra-build-args }}
+          echo "构建成功完成！"
+          echo "构建产物："
+          ls -lh ./flutter/build/macos/Build/Products/Release/ 2>/dev/null || ls -lh ./target/release/ 2>/dev/null || true
 
       - name: create unsigned dmg
         run: |
@@ -258,6 +259,23 @@ jobs:
           files: |
             rustdesk*-${{ matrix.job.arch }}*.dmg
 
+      - name: 构建失败通知
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'build-failed',
+              client_payload: {
+                workflow: context.workflow,
+                run_id: context.runId,
+                run_url: context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId,
+                job: '${{ matrix.job.target }}',
+                message: '构建失败，请查看日志'
+              }
+            });
 
   build-rustdesk-android:
     if: false
@@ -403,7 +421,17 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
         run: |
+          set -x
+          set -e
+          trap 'echo "Android构建失败，正在收集诊断信息..."; df -h; du -sh target 2>/dev/null || true' ERR
           export PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
+          echo "开始构建 RustDesk Android..."
+          echo "构建环境信息："
+          java -version
+          rustup -V
+          cargo -V
+          flutter --version
+          echo "开始执行构建..."
           # temporary use debug sign config
           sed -i "s/signingConfigs.release/signingConfigs.debug/g" ./flutter/android/app/build.gradle
           case ${{ matrix.job.target }} in
@@ -429,6 +457,9 @@ jobs:
           popd
           mkdir -p signed-apk; pushd signed-apk
           mv ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk ./rustdesk-test-${{ matrix.job.ref }}.apk
+          echo "Android构建成功完成！"
+          echo "构建产物："
+          ls -lh ./
 
       - uses: r0adkll/sign-android-release@v1
         name: Sign app APK
