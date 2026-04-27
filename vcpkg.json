@@ -104,6 +104,10 @@
     {
       "name": "aom",
       "version": "3.12.1"
+    },
+    {
+      "name": "libvpx",
+      "version": "1.15.2"
     }
   ]
 }
