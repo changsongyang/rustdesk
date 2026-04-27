@@ -1480,13 +1480,15 @@ jobs:
           run: |
             # disable git safe.directory
             git config --global --add safe.directory "*"
-            # rust
-            pushd /opt
-            # do not use rustup, because memory overflow in qemu
-            wget -O rust.tar.gz https://static.rust-lang.org/dist/rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }}.tar.gz
-            tar -zxvf rust.tar.gz > /dev/null && rm rust.tar.gz
-            cd rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }} && ./install.sh
-            rm -rf rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }}
+            # Check if rust is already available
+            if command -v rustc &> /dev/null; then
+              echo "Rust already installed: $(rustc --version)"
+            else
+              echo "Rust not found, installing..."
+              # Use rustup for better compatibility
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              source $HOME/.cargo/env
+            fi
             # edit config
             mkdir -p ~/.cargo/
             echo """
@@ -1498,7 +1500,8 @@ jobs:
             pushd /workspace
             export VCPKG_ROOT=/opt/artifacts/vcpkg
             if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
-              export JOBS="--jobs 3"
+              export JOBS="--jobs 2"
+              export RUSTFLAGS="-C debuginfo=0"
             else
               export JOBS=""
             fi
@@ -1785,15 +1788,15 @@ jobs:
             popd
             popd
             # rust
-            pushd /opt
-            # do not use rustup, because memory overflow in qemu
-            wget --output-document rust.tar.gz https://static.rust-lang.org/dist/rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }}.tar.gz
-            tar -zxvf rust.tar.gz > /dev/null && rm rust.tar.gz
-            pushd rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }}
-            ./install.sh
-            popd
-            rm -rf rust-${{env.RUST_TOOLCHAIN_VERSION}}-${{ matrix.job.target }}
-            popd
+            # Check if rust is already available
+            if command -v rustc &> /dev/null; then
+              echo "Rust already installed: $(rustc --version)"
+            else
+              echo "Rust not found, installing..."
+              # Use rustup for better compatibility
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              source $HOME/.cargo/env
+            fi
             # install newer nasm for aom
             wget --output-document nasm.deb "http://ftp.us.debian.org/debian/pool/main/n/nasm/nasm_${{ env.SCITER_NASM_DEBVERSION }}_${{ matrix.job.deb_arch }}.deb"
             dpkg -i nasm.deb
