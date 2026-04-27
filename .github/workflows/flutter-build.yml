@@ -1487,8 +1487,12 @@ jobs:
               echo "Rust not found, installing..."
               # Use rustup for better compatibility
               curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-              source $HOME/.cargo/env
             fi
+            # Add cargo to PATH
+            export PATH="$HOME/.cargo/bin:$PATH"
+            echo "Cargo path: $(which cargo)"
+            echo "Rust version: $(rustc --version)"
+            echo "Cargo version: $(cargo --version)"
             # edit config
             mkdir -p ~/.cargo/
             echo """
@@ -1795,8 +1799,12 @@ jobs:
               echo "Rust not found, installing..."
               # Use rustup for better compatibility
               curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-              source $HOME/.cargo/env
             fi
+            # Add cargo to PATH
+            export PATH="$HOME/.cargo/bin:$PATH"
+            echo "Cargo path: $(which cargo)"
+            echo "Rust version: $(rustc --version)"
+            echo "Cargo version: $(cargo --version)"
             # install newer nasm for aom
             wget --output-document nasm.deb "http://ftp.us.debian.org/debian/pool/main/n/nasm/nasm_${{ env.SCITER_NASM_DEBVERSION }}_${{ matrix.job.deb_arch }}.deb"
             dpkg -i nasm.deb
