@@ -18,9 +18,21 @@ on:
 # in this file!
 
 env:
-  SCITER_RUST_VERSION: "1.95" # https://github.com/rustdesk/rustdesk/discussions/7503, upgraded to 1.95 for edition2024 support
-  RUST_VERSION: "1.95" # Upgraded to 1.95 for edition2024 support
-  MAC_RUST_VERSION: "1.95" # Upgraded to 1.95 for edition2024 support
+  # Rust 版本配置
+  SCITER_RUST_VERSION: "1.95"
+  RUST_VERSION: "1.95"
+  MAC_RUST_VERSION: "1.95"
+
+  # Node.js 和 Actions 配置 - 解决 Node.js 20 弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
+  # Cargo 网络配置 - 提高下载稳定性
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+  CARGO_TERM_COLOR: "always"
+
+  # 其他配置
   CARGO_NDK_VERSION: "3.1.2"
   SCITER_ARMV7_CMAKE_VERSION: "3.29.7"
   SCITER_NASM_DEBVERSION: "2.15.05-1"

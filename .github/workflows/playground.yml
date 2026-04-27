@@ -7,7 +7,18 @@ on:
   workflow_dispatch:
 
 env:
-  RUST_VERSION: "1.95" # Upgraded to 1.95 for edition2024 support
+  # Rust 版本配置
+  RUST_VERSION: "1.95"
+
+  # Node.js 和 Actions 配置 - 解决 Node.js 20 弃用警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
+  # Cargo 网络配置 - 提高下载稳定性
+  CARGO_NET_RETRY: "10"
+  CARGO_HTTP_MULTIPLEXING: "false"
+  CARGO_TERM_COLOR: "always"
+
   CARGO_NDK_VERSION: "3.1.2"
   LLVM_VERSION: "15.0.6"
   FLUTTER_VERSION: "3.22.2"
