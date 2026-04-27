@@ -21,7 +21,7 @@ if(DEFINED ENV{USE_AOM_391})
 else()
     vcpkg_from_git(
         OUT_SOURCE_PATH SOURCE_PATH
-        URL "https://aomedia.googlesource.com/aom"
+        URL "https://github.com/changsongyang/aom.git"
         REF 10aece4157eb79315da205f39e19bf6ab3ee30d0 # 3.12.1
         PATCHES
             aom-uninitialized-pointer.diff
@@ -51,6 +51,8 @@ vcpkg_cmake_configure(
         -DENABLE_TESTDATA=OFF
         -DENABLE_TESTS=OFF
         -DENABLE_TOOLS=OFF
+        -DAOM_TARGET_CPU=generic
+        -DENABLE_NASM=OFF
 )
 
 vcpkg_cmake_install()
