@@ -1484,9 +1484,9 @@ jobs:
             if command -v rustc &> /dev/null; then
               echo "Rust already installed: $(rustc --version)"
             else
-              echo "Rust not found, installing..."
-              # Use rustup for better compatibility
-              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              echo "Rust not found, installing Rust ${{ env.RUST_VERSION }}..."
+              # Use rustup to install specific version for edition 2024 compatibility
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             fi
             # Add cargo to PATH
             export PATH="$HOME/.cargo/bin:$PATH"
@@ -1796,9 +1796,9 @@ jobs:
             if command -v rustc &> /dev/null; then
               echo "Rust already installed: $(rustc --version)"
             else
-              echo "Rust not found, installing..."
-              # Use rustup for better compatibility
-              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+              echo "Rust not found, installing Rust ${{ env.SCITER_RUST_VERSION }}..."
+              # Use rustup to install specific version for edition 2024 compatibility
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.SCITER_RUST_VERSION }}
             fi
             # Add cargo to PATH
             export PATH="$HOME/.cargo/bin:$PATH"
