@@ -181,6 +181,17 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
+          default: true
+
+      - name: Verify Rust toolchain installation
+        shell: bash
+        run: |
+          rustup -V
+          rustup toolchain list
+          rustup default
+          cargo -V
+          rustc -V
+          echo "Using Rust toolchain: $(rustup show active-toolchain)"
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -418,6 +429,17 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           components: "rustfmt"
+          default: true
+
+      - name: Verify Rust toolchain installation
+        shell: bash
+        run: |
+          rustup -V
+          rustup toolchain list
+          rustup default
+          cargo -V
+          rustc -V
+          echo "Using Rust toolchain: $(rustup show active-toolchain)"
 
       - name: Install flutter rust bridge deps
         run: |
