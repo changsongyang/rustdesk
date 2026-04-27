@@ -203,7 +203,17 @@ jobs:
           cargo -V
           rustc -V
 
-      - name: Build rustdesk
+      - name: 优化构建性能
+        run: |
+          chmod +x ./scripts/build-optimizer.sh
+          ./scripts/build-optimizer.sh
+
+      - name: 运行自动化测试
+        run: |
+          chmod +x ./scripts/test-runner.sh
+          ./scripts/test-runner.sh
+
+      - name: 构建 rustdesk
         run: |
           set -x
           set -e
@@ -215,10 +225,17 @@ jobs:
           rustup show
           cargo -V
           echo "开始执行构建脚本..."
-          ./build.py --flutter ${{ matrix.job.extra-build-args }}
+          chmod +x ./scripts/build-monitor.sh
+          ./scripts/build-monitor.sh ./build.py --flutter ${{ matrix.job.extra-build-args }}
           echo "构建成功完成！"
           echo "构建产物："
           ls -lh ./flutter/build/macos/Build/Products/Release/ 2>/dev/null || ls -lh ./target/release/ 2>/dev/null || true
+
+      - name: 生成构建分析报告
+        if: success()
+        run: |
+          chmod +x ./scripts/build-analyzer.py
+          python3 ./scripts/build-analyzer.py
 
       - name: create unsigned dmg
         run: |

@@ -1,0 +1,17 @@
+{
+  "monitor_dir": ".build-monitor",
+  "log_file": "build.log",
+  "stats_file": "build-stats.json",
+  "errors_file": "errors.json",
+  "report_dir": ".build-reports",
+  "retention_days": 30,
+  "max_builds": 1000,
+  "max_errors": 500,
+  "email_notifications": false,
+  "slack_notifications": false,
+  "webhook_url": "",
+  "thresholds": {
+    "build_time": 600,
+    "success_rate": 90
+  }
+}
