@@ -1001,6 +1001,8 @@ jobs:
         shell: bash
         run: |
           clang --version || true
+          # 确保 Rust 工具链在 PATH 中
+          source "$HOME/.cargo/env" || true
           rustup -V
           rustup toolchain list
           # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
