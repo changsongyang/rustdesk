@@ -164,6 +164,21 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.job.target }}-
             ${{ runner.os }}-cargo-
 
+      - name: Validate build environment
+        run: |
+          echo "=== 环境验证 ==="
+          rustc --version
+          cargo --version
+          echo "VCPKG_ROOT: $VCPKG_ROOT"
+          echo "RUST_VERSION: $RUST_VERSION"
+          if [ -d "$VCPKG_ROOT" ]; then
+            echo "✅ vcpkg directory exists"
+          else
+            echo "❌ vcpkg directory not found"
+            exit 1
+          fi
+        shell: bash
+
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
         with:
@@ -559,10 +574,31 @@ jobs:
           name: bridge-artifact
           path: ./
 
-      - name: Build rustdesk lib
+      - name: Build rustdesk lib with retry
         run: |
           rustup target add ${{ matrix.job.target }}
-          cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib
+          
+          # Retry mechanism for cargo build
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "=== 构建尝试 $ATTEMPT/$MAX_RETRIES ==="
+            if cargo build --features flutter,hwcodec --release --target ${{ matrix.job.target }} --lib; then
+              echo "✅ 构建成功"
+              exit 0
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+              echo "❌ 构建失败，等待 ${RETRY_DELAY}秒后重试..."
+              sleep $RETRY_DELAY
+              ATTEMPT=$((ATTEMPT + 1))
+            else
+              echo "❌ 构建失败，已达到最大重试次数"
+              exit 1
+            fi
+          done
           
       - name: Upload liblibrustdesk.a Artifacts
         uses: actions/upload-artifact@master
@@ -1042,35 +1078,59 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.job.target }}-
             ${{ runner.os }}-cargo-
 
-      - name: Build rustdesk lib
+      - name: Build rustdesk lib with retry
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           rustup target add ${{ matrix.job.target }}
-          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked
-          case ${{ matrix.job.target }} in
-            aarch64-linux-android)
-              ./flutter/ndk_arm64.sh
-              mkdir -p ./flutter/android/app/src/main/jniLibs/arm64-v8a
-              cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
-            ;;
-            armv7-linux-androideabi)
-              ./flutter/ndk_arm.sh
-              mkdir -p ./flutter/android/app/src/main/jniLibs/armeabi-v7a
-              cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/armeabi-v7a/librustdesk.so
-            ;;
-            x86_64-linux-android)
-              ./flutter/ndk_x64.sh
-              mkdir -p ./flutter/android/app/src/main/jniLibs/x86_64
-              cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86_64/librustdesk.so
-            ;;
-            i686-linux-android)
-              ./flutter/ndk_x86.sh
-              mkdir -p ./flutter/android/app/src/main/jniLibs/x86
-              cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86/librustdesk.so
-            ;;
-          esac
+          
+          # Retry mechanism for cargo ndk build
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "=== 构建尝试 $ATTEMPT/$MAX_RETRIES ==="
+            
+            cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked
+            case ${{ matrix.job.target }} in
+              aarch64-linux-android)
+                ./flutter/ndk_arm64.sh
+                mkdir -p ./flutter/android/app/src/main/jniLibs/arm64-v8a
+                cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/arm64-v8a/librustdesk.so
+              ;;
+              armv7-linux-androideabi)
+                ./flutter/ndk_arm.sh
+                mkdir -p ./flutter/android/app/src/main/jniLibs/armeabi-v7a
+                cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/armeabi-v7a/librustdesk.so
+              ;;
+              x86_64-linux-android)
+                ./flutter/ndk_x64.sh
+                mkdir -p ./flutter/android/app/src/main/jniLibs/x86_64
+                cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86_64/librustdesk.so
+              ;;
+              i686-linux-android)
+                ./flutter/ndk_x86.sh
+                mkdir -p ./flutter/android/app/src/main/jniLibs/x86
+                cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/x86/librustdesk.so
+              ;;
+            esac
+            
+            if [ -f ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ]; then
+              echo "✅ 构建成功"
+              exit 0
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+              echo "❌ 构建失败，等待 ${RETRY_DELAY}秒后重试..."
+              sleep $RETRY_DELAY
+              ATTEMPT=$((ATTEMPT + 1))
+            else
+              echo "❌ 构建失败，已达到最大重试次数"
+              exit 1
+            fi
+          done
 
       - name: Upload Rustdesk library to Artifacts
         uses: actions/upload-artifact@master
