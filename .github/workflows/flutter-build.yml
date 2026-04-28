@@ -236,7 +236,7 @@ jobs:
           cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
           
           # 预安装常用工具
-          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked 2>&1 | tail -5 || echo "cargo-ndk 已安装"
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked --force 2>&1 | tail -5 || echo "cargo-ndk 已安装"
         continue-on-error: true
         env:
           CARGO_INCREMENTAL: "true"
@@ -1264,7 +1264,7 @@ jobs:
         run: |
           echo "=== 预获取 Cargo 依赖 ==="
           cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
-          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked 2>&1 | tail -5 || echo "cargo-ndk 已安装"
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked --force 2>&1 | tail -5 || echo "cargo-ndk 已安装"
         continue-on-error: true
 
       - name: Build rustdesk lib with retry
@@ -1282,7 +1282,7 @@ jobs:
           while [ $ATTEMPT -le $MAX_RETRIES ]; do
             echo "=== 构建尝试 $ATTEMPT/$MAX_RETRIES ==="
             
-            cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked
+            cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked --force
             case ${{ matrix.job.target }} in
               aarch64-linux-android)
                 ./flutter/ndk_arm64.sh
