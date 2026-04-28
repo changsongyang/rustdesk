@@ -75,12 +75,12 @@ impl EncoderApi for VpxEncoder {
                 c.g_error_resilient = VPX_ERROR_RESILIENT_DEFAULT;
                 // https://developers.google.com/media/vp9/bitrate-modes/
                 // Constant Bitrate mode (CBR) is recommended for live streaming with VP9.
-                c.rc_end_usage = vpx_rc_mode::VPX_CBR;
+                c.rc_end_usage = vpx_rc_mode::VPX_CBR as _;
                 if let Some(keyframe_interval) = config.keyframe_interval {
                     c.kf_min_dist = 0;
                     c.kf_max_dist = keyframe_interval as _;
                 } else {
-                    c.kf_mode = vpx_kf_mode::VPX_KF_DISABLED; // reduce bandwidth a lot
+                    c.kf_mode = vpx_kf_mode::VPX_KF_DISABLED as _; // reduce bandwidth a lot
                 }
 
                 let (q_min, q_max) = Self::calc_q_values(config.quality);
