@@ -103,11 +103,13 @@
     },
     {
       "name": "aom",
-      "version": "3.6.0"
+      "version": "3.6.0",
+      "comment": "锁定版本以兼容 bindgen 生成的 FFI 绑定 (3.12.1 版本存在 API 不兼容问题)"
     },
     {
       "name": "libvpx",
-      "version": "1.13.0"
+      "version": "1.13.0",
+      "comment": "锁定版本以兼容 bindgen 生成的 FFI 绑定 (1.15.2 版本存在 API 不兼容问题)"
     },
     {
       "name": "libyuv",

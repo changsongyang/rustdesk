@@ -198,10 +198,18 @@ jobs:
         cargo metadata --format-version=1 | head -5 || true
 
     - uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: "rust-cache-v2-${{ env.RUST_VERSION }}"
+        workspaces: |
+          target/
+        save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
-    - name: Build
-      run: cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }}
+    - name: Build with parallel jobs
+      run: cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }} -j $(nproc)
       shell: bash
+      env:
+        CARGO_INCREMENTAL: "true"
+        CARGO_PROFILE_RELEASE_INCREMENTAL: "true"
 
     - name: clean
       shell: bash
@@ -243,6 +251,16 @@ jobs:
     #     # Let subsequent steps know where to find the (stripped) bin
     #     echo ::set-output name=BIN_PATH::${BIN_PATH}
     #     echo ::set-output name=BIN_NAME::${BIN_NAME}
+
+    - name: Run clippy (x86_64 only)
+      if: ${{ matrix.job.target == 'x86_64-pc-windows-msvc' || matrix.job.target == 'x86_64-unknown-linux-gnu' || matrix.job.target == 'x86_64-apple-darwin' }}
+      run: cargo +${{ env.RUST_VERSION }} clippy --all-targets -- -D warnings
+      shell: bash
+
+    - name: Run rustfmt check (x86_64 only)
+      if: ${{ matrix.job.target == 'x86_64-pc-windows-msvc' || matrix.job.target == 'x86_64-unknown-linux-gnu' || matrix.job.target == 'x86_64-apple-darwin' }}
+      run: cargo +${{ env.RUST_VERSION }} fmt --check
+      shell: bash
 
     - name: Set testing options
       id: test-options

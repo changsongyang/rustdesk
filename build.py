@@ -39,10 +39,22 @@ def get_deb_extra_depends() -> str:
     return ""
 
 def system2(cmd):
-    exit_code = os.system(cmd)
-    if exit_code != 0:
-        sys.stderr.write(f"Error occurred when executing: `{cmd}`. Exiting.\n")
-        sys.exit(-1)
+    import subprocess
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"Error occurred when executing: `{cmd}`\n")
+        sys.stderr.write(f"Exit code: {e.returncode}\n")
+        sys.stderr.write(f"Stderr: {e.stderr}\n")
+        sys.exit(e.returncode)
 
 
 def get_version():
