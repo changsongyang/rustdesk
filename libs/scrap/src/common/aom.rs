@@ -108,7 +108,7 @@ mod webrtc {
             c.kf_min_dist = 0;
             c.kf_max_dist = keyframe_interval as _;
         } else {
-            c.kf_mode = aom_kf_mode::AOM_KF_DISABLED as _;
+            c.kf_mode = aom_kf_mode::AOM_KF_DISABLED;
         }
         let (q_min, q_max) = AomEncoder::calc_q_values(cfg.quality);
         c.rc_min_quantizer = q_min;
@@ -122,8 +122,8 @@ mod webrtc {
         c.g_usage = kUsageProfile;
         c.g_error_resilient = 0;
         // Low-latency settings.
-        c.rc_end_usage = aom_rc_mode::AOM_CBR as _; // Constant Bit Rate (CBR) mode
-        c.g_pass = aom_enc_pass::AOM_RC_ONE_PASS as _; // One-pass rate control
+        c.rc_end_usage = aom_rc_mode::AOM_CBR; // Constant Bit Rate (CBR) mode
+        c.g_pass = aom_enc_pass::AOM_RC_ONE_PASS; // One-pass rate control
         c.g_lag_in_frames = kLagInFrames; // No look ahead when lag equals 0.
 
         // https://aomedia.googlesource.com/aom/+/refs/tags/v3.6.0/av1/common/enums.h#82
@@ -445,7 +445,12 @@ impl AomDecoder {
     pub fn new() -> Result<Self> {
         let i = call_aom_ptr!(aom_codec_av1_dx());
         let mut ctx = Default::default();
-        let cfg: aom_codec_dec_cfg_t = unsafe { std::mem::zeroed() };
+        let cfg = aom_codec_dec_cfg_t {
+            threads: codec_thread_num(64) as _,
+            w: 0,
+            h: 0,
+            allow_lowbitdepth: 1,
+        };
         call_aom!(aom_codec_dec_init_ver(
             &mut ctx,
             i,

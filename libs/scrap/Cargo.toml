@@ -50,7 +50,6 @@ quest = "0.3"
 target_build_utils = "0.3"
 bindgen = "0.65"
 pkg-config = { version = "0.3.27", optional = true }
-regex = "1.10"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus = { version = "0.9", optional = true }

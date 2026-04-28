@@ -137,150 +137,6 @@ fn find_package(name: &str) -> Vec<PathBuf> {
     }
 }
 
-fn patch_vpx_bindings(content: &str) -> String {
-    use regex::Regex;
-    let mut patched = content.to_string();
-    
-    // Patch vpx_codec_enc_cfg struct using regex
-    let vpx_enc_cfg_regex = Regex::new(r"pub struct vpx_codec_enc_cfg \{\s*pub _address: u8,\s*\}").unwrap();
-    let vpx_enc_cfg_replacement = "pub struct vpx_codec_enc_cfg {
-    pub g_usage: ::std::os::raw::c_uint,
-    pub g_threads: ::std::os::raw::c_uint,
-    pub g_profile: ::std::os::raw::c_uint,
-    pub g_w: ::std::os::raw::c_uint,
-    pub g_h: ::std::os::raw::c_uint,
-    pub g_bit_depth: ::std::os::raw::c_uint,
-    pub g_input_bit_depth: ::std::os::raw::c_uint,
-    pub g_timebase: vpx_rational,
-    pub g_error_resilient: ::std::os::raw::c_uint,
-    pub g_pass: ::std::os::raw::c_int,
-    pub g_lag_in_frames: ::std::os::raw::c_uint,
-    pub rc_dropframe_thresh: ::std::os::raw::c_uint,
-    pub rc_resize_allowed: ::std::os::raw::c_uint,
-    pub rc_scaled_width: ::std::os::raw::c_uint,
-    pub rc_scaled_height: ::std::os::raw::c_uint,
-    pub rc_resize_up_thresh: ::std::os::raw::c_uint,
-    pub rc_resize_down_thresh: ::std::os::raw::c_uint,
-    pub rc_end_usage: ::std::os::raw::c_int,
-    pub rc_twopass_stats_in: vpx_fixed_buf_t,
-    pub rc_firstpass_mb_stats_in: vpx_fixed_buf_t,
-    pub rc_target_bitrate: ::std::os::raw::c_uint,
-    pub rc_min_quantizer: ::std::os::raw::c_uint,
-    pub rc_max_quantizer: ::std::os::raw::c_uint,
-    pub rc_undershoot_pct: ::std::os::raw::c_uint,
-    pub rc_overshoot_pct: ::std::os::raw::c_uint,
-    pub rc_buf_sz: ::std::os::raw::c_uint,
-    pub rc_buf_initial_sz: ::std::os::raw::c_uint,
-    pub rc_buf_optimal_sz: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_bias_pct: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_minsection_pct: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_maxsection_pct: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_corpus_complexity: ::std::os::raw::c_uint,
-    pub kf_mode: ::std::os::raw::c_int,
-    pub kf_min_dist: ::std::os::raw::c_uint,
-    pub kf_max_dist: ::std::os::raw::c_uint,
-    pub ss_number_layers: ::std::os::raw::c_uint,
-    pub ss_enable_auto_alt_ref: [::std::os::raw::c_int; 4usize],
-    pub ss_target_bitrate: [::std::os::raw::c_uint; 4usize],
-}";
-    
-    let before = patched.len();
-    patched = vpx_enc_cfg_regex.replace(&patched, vpx_enc_cfg_replacement).to_string();
-    let after = patched.len();
-    if before != after {
-        println!("cargo:warning=VPX enc cfg patched: {} -> {}", before, after);
-    }
-    
-    // Patch vpx_codec_dec_cfg struct using regex
-    let vpx_dec_cfg_regex = Regex::new(r"pub struct vpx_codec_dec_cfg \{\s*pub _address: u8,\s*\}").unwrap();
-    let vpx_dec_cfg_replacement = "pub struct vpx_codec_dec_cfg {
-    pub threads: ::std::os::raw::c_uint,
-    pub w: ::std::os::raw::c_uint,
-    pub h: ::std::os::raw::c_uint,
-}";
-    
-    let before = patched.len();
-    patched = vpx_dec_cfg_regex.replace(&patched, vpx_dec_cfg_replacement).to_string();
-    let after = patched.len();
-    if before != after {
-        println!("cargo:warning=VPX dec cfg patched: {} -> {}", before, after);
-    }
-    
-    patched
-}
-
-fn patch_aom_bindings(content: &str) -> String {
-    use regex::Regex;
-    let mut patched = content.to_string();
-    
-    // Patch aom_codec_enc_cfg struct using regex
-    let aom_enc_cfg_regex = Regex::new(r"pub struct aom_codec_enc_cfg \{\s*pub _address: u8,\s*\}").unwrap();
-    let aom_enc_cfg_replacement = "pub struct aom_codec_enc_cfg {
-    pub g_usage: ::std::os::raw::c_uint,
-    pub g_threads: ::std::os::raw::c_uint,
-    pub g_profile: ::std::os::raw::c_uint,
-    pub g_w: ::std::os::raw::c_uint,
-    pub g_h: ::std::os::raw::c_uint,
-    pub g_limit: ::std::os::raw::c_uint,
-    pub g_forced_max_frame_width: ::std::os::raw::c_uint,
-    pub g_forced_max_frame_height: ::std::os::raw::c_uint,
-    pub g_bit_depth: ::std::os::raw::c_uint,
-    pub g_input_bit_depth: ::std::os::raw::c_uint,
-    pub g_timebase: aom_rational,
-    pub g_error_resilient: ::std::os::raw::c_uint,
-    pub g_pass: ::std::os::raw::c_int,
-    pub g_lag_in_frames: ::std::os::raw::c_uint,
-    pub rc_dropframe_thresh: ::std::os::raw::c_uint,
-    pub rc_resize_mode: ::std::os::raw::c_uint,
-    pub rc_resize_denominator: ::std::os::raw::c_uint,
-    pub rc_resize_kf_denominator: ::std::os::raw::c_uint,
-    pub rc_superres_mode: ::std::os::raw::c_uint,
-    pub rc_superres_denominator: ::std::os::raw::c_uint,
-    pub rc_superres_kf_denominator: ::std::os::raw::c_uint,
-    pub rc_end_usage: ::std::os::raw::c_int,
-    pub rc_twopass_stats_in: aom_fixed_buf_t,
-    pub rc_target_bitrate: ::std::os::raw::c_uint,
-    pub rc_min_quantizer: ::std::os::raw::c_uint,
-    pub rc_max_quantizer: ::std::os::raw::c_uint,
-    pub rc_undershoot_pct: ::std::os::raw::c_uint,
-    pub rc_overshoot_pct: ::std::os::raw::c_uint,
-    pub rc_buf_sz: ::std::os::raw::c_uint,
-    pub rc_buf_initial_sz: ::std::os::raw::c_uint,
-    pub rc_buf_optimal_sz: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_bias_pct: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_minsection_pct: ::std::os::raw::c_uint,
-    pub rc_2pass_vbr_maxsection_pct: ::std::os::raw::c_uint,
-    pub kf_mode: ::std::os::raw::c_int,
-    pub kf_min_dist: ::std::os::raw::c_uint,
-    pub kf_max_dist: ::std::os::raw::c_uint,
-}";
-    
-    let before = patched.len();
-    patched = aom_enc_cfg_regex.replace(&patched, aom_enc_cfg_replacement).to_string();
-    let after = patched.len();
-    if before != after {
-        println!("cargo:warning=AOM enc cfg patched: {} -> {}", before, after);
-    }
-    
-    // Patch aom_codec_dec_cfg struct using regex
-    let aom_dec_cfg_regex = Regex::new(r"pub struct aom_codec_dec_cfg \{\s*pub _address: u8,\s*\}").unwrap();
-    let aom_dec_cfg_replacement = "pub struct aom_codec_dec_cfg {
-    pub threads: ::std::os::raw::c_uint,
-    pub w: ::std::os::raw::c_uint,
-    pub h: ::std::os::raw::c_uint,
-    pub allow_lowbitdepth: ::std::os::raw::c_uint,
-}";
-    
-    let before = patched.len();
-    patched = aom_dec_cfg_regex.replace(&patched, aom_dec_cfg_replacement).to_string();
-    let after = patched.len();
-    if before != after {
-        println!("cargo:warning=AOM dec cfg patched: {} -> {}", before, after);
-    }
-    
-    patched
-}
-
 fn generate_bindings(
     ffi_header: &Path,
     include_paths: &[PathBuf],
@@ -302,29 +158,11 @@ fn generate_bindings(
         b = b.clang_arg(format!("-I{}", dir.display()));
     }
 
-    let bindings = b.generate().unwrap();
-    
-    // Write to OUT_DIR
-    bindings.write_to_file(ffi_rs).unwrap();
-    
-    // Read the generated content
-    let content = fs::read_to_string(ffi_rs).unwrap();
-    
-    // Apply patches based on file name
-    let patched_content = if ffi_rs.file_name().unwrap_or_default().to_str().unwrap_or_default() == "vpx_ffi.rs" {
-        println!("cargo:warning=Patching vpx bindings");
-        patch_vpx_bindings(&content)
-    } else if ffi_rs.file_name().unwrap_or_default().to_str().unwrap_or_default() == "aom_ffi.rs" {
-        println!("cargo:warning=Patching aom bindings");
-        patch_aom_bindings(&content)
-    } else {
-        content
-    };
-    
-    // Write patched content
-    fs::write(ffi_rs, patched_content).unwrap();
-    
-    // Copy to exact_file (generated/ directory)
+    b.generate()
+        .unwrap()
+        .write_to_file(ffi_rs)
+        .unwrap();
+
     if let Some(parent) = exact_file.parent() {
         fs::create_dir_all(parent).ok();
     }
