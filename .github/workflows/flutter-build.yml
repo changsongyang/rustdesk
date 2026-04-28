@@ -269,6 +269,39 @@ jobs:
           name: topmostwindow-artifacts
           path: "./rustdesk"
 
+      - name: Verify build products
+        run: |
+          echo "=== 构建产物验证 ==="
+          echo "检查主程序..."
+          if [ -f "./rustdesk/rustdesk.exe" ]; then
+            SIZE=$(stat -c%s "./rustdesk/rustdesk.exe")
+            echo "✅ rustdesk.exe 存在 - 大小: $(numfmt --to=iec $SIZE)"
+          else
+            echo "❌ rustdesk.exe 不存在"
+            exit 1
+          fi
+          
+          echo ""
+          echo "列出产物目录:"
+          ls -la ./rustdesk/
+        shell: bash
+
+      - name: Build time statistics
+        run: |
+          echo "=== 构建时间统计 ==="
+          echo "开始时间: $BUILD_START_TIME"
+          echo "当前时间: $(date)"
+          if [ -n "$BUILD_START_TIME" ]; then
+            START=$(date -d "$BUILD_START_TIME" +%s)
+            END=$(date +%s)
+            DIFF=$((END - START))
+            HOURS=$((DIFF / 3600))
+            MINUTES=$(( (DIFF % 3600) / 60 ))
+            SECONDS=$((DIFF % 60))
+            echo "总耗时: ${HOURS}小时${MINUTES}分钟${SECONDS}秒"
+          fi
+        shell: bash
+
       - name: Upload unsigned
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@master
@@ -613,6 +646,33 @@ jobs:
           # flutter build ipa --release --obfuscate --split-debug-info=./split-debug-info --no-codesign
           # for easy debugging
           flutter build ipa --release --no-codesign
+
+      - name: Verify iOS build products
+        shell: bash
+        run: |
+          echo "=== iOS 构建产物验证 ==="
+          
+          # 验证静态库
+          echo "检查静态库..."
+          LIB_PATH="target/aarch64-apple-ios/release/liblibrustdesk.a"
+          if [ -f "$LIB_PATH" ]; then
+            SIZE=$(stat -f%z "$LIB_PATH")
+            echo "✅ liblibrustdesk.a 存在 - 大小: $(numfmt --to=iec $SIZE)"
+          else
+            echo "❌ liblibrustdesk.a 不存在"
+            exit 1
+          fi
+          
+          # 验证 IPA
+          echo ""
+          echo "检查 IPA..."
+          IPA_PATH=$(find flutter/build/ios/ipa -name "*.ipa" 2>/dev/null | head -1)
+          if [ -n "$IPA_PATH" ]; then
+            SIZE=$(stat -f%z "$IPA_PATH")
+            echo "✅ IPA 存在 - $IPA_PATH - 大小: $(numfmt --to=iec $SIZE)"
+          else
+            echo "⚠️  IPA 未找到"
+          fi
 
       # - name: Upload Artifacts
       #   # if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
@@ -1137,6 +1197,40 @@ jobs:
         with:
           name: librustdesk.so.${{ matrix.job.target }}
           path: ./target/${{ matrix.job.target }}/release/liblibrustdesk.so
+
+      - name: Verify Android build products
+        shell: bash
+        run: |
+          echo "=== Android 构建产物验证 ==="
+          
+          # 验证共享库
+          echo "检查共享库..."
+          LIB_PATH="./target/${{ matrix.job.target }}/release/liblibrustdesk.so"
+          if [ -f "$LIB_PATH" ]; then
+            SIZE=$(stat -c%s "$LIB_PATH")
+            echo "✅ liblibrustdesk.so 存在 - 大小: $(numfmt --to=iec $SIZE)"
+          else
+            echo "❌ liblibrustdesk.so 不存在"
+            exit 1
+          fi
+          
+          # 验证 jniLibs
+          echo ""
+          echo "检查 jniLibs 目录..."
+          ARCH_DIR=$(case ${{ matrix.job.target }} in
+            aarch64-linux-android) echo "arm64-v8a" ;;
+            armv7-linux-androideabi) echo "armeabi-v7a" ;;
+            x86_64-linux-android) echo "x86_64" ;;
+            i686-linux-android) echo "x86" ;;
+            *) echo "unknown" ;;
+          esac)
+          
+          JNI_PATH="./flutter/android/app/src/main/jniLibs/$ARCH_DIR/librustdesk.so"
+          if [ -f "$JNI_PATH" ]; then
+            echo "✅ jniLibs 已复制 - $JNI_PATH"
+          else
+            echo "⚠️  jniLibs 未复制"
+          fi
 
       - name: Build rustdesk
         shell: bash
