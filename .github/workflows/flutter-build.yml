@@ -489,7 +489,7 @@ jobs:
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgDirectory: /opt/vcpkg
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
 
@@ -694,7 +694,7 @@ jobs:
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgDirectory: /opt/vcpkg
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
 
