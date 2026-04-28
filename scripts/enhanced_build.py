@@ -110,7 +110,7 @@ class EnhancedBuildExecutor:
                     cmd,
                     shell=True,
                     capture_output=True,
-                    text=True,
+                    universal_newlines=True,
                     cwd=cwd or str(self.project_root),
                     timeout=3600  # 1小时超时
                 )
@@ -180,7 +180,7 @@ class EnhancedBuildExecutor:
             result = subprocess.run(
                 ["rustc", "--version"],
                 capture_output=True,
-                text=True
+                universal_newlines=True
             )
             if result.returncode == 0:
                 self.logger.info(f"Rust: {result.stdout.strip()}")
@@ -195,7 +195,7 @@ class EnhancedBuildExecutor:
             result = subprocess.run(
                 ["cargo", "--version"],
                 capture_output=True,
-                text=True
+                universal_newlines=True
             )
             if result.returncode == 0:
                 self.logger.info(f"Cargo: {result.stdout.strip()}")

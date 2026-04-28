@@ -26,7 +26,7 @@ def run_command(cmd, capture_output=True):
             cmd,
             shell=True,
             capture_output=capture_output,
-            text=True,
+            universal_newlines=True,
             timeout=60
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()

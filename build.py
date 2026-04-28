@@ -47,7 +47,7 @@ def system2(cmd):
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            universal_newlines=True
         )
         return result.stdout
     except subprocess.CalledProcessError as e:
