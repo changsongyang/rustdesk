@@ -179,6 +179,17 @@ jobs:
         with:
           prefix-key: ${{ matrix.job.os }}
 
+      - name: Pre-fetch Cargo dependencies (warm cache)
+        shell: bash
+        run: |
+          echo "=== 预获取 Cargo 依赖 ==="
+          # 预获取依赖以预热缓存
+          cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
+          
+          # 预安装常用工具
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked 2>&1 | tail -5 || echo "cargo-ndk 已安装"
+        continue-on-error: true
+
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
         with:
@@ -642,6 +653,13 @@ jobs:
         with:
           prefix-key: rustdesk-lib-cache-ios
           key: ${{ matrix.job.target }}
+
+      - name: Pre-fetch Cargo dependencies (warm cache)
+        shell: bash
+        run: |
+          echo "=== 预获取 Cargo 依赖 ==="
+          cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
+        continue-on-error: true
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -1180,6 +1198,14 @@ jobs:
           prefix-key: rustdesk-lib-cache-android # TODO: drop '-android' part after caches are invalidated
           key: ${{ matrix.job.target }}
 
+      - name: Pre-fetch Cargo dependencies (warm cache)
+        shell: bash
+        run: |
+          echo "=== 预获取 Cargo 依赖 ==="
+          cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked 2>&1 | tail -5 || echo "cargo-ndk 已安装"
+        continue-on-error: true
+
       - name: Build rustdesk lib with retry
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -1638,6 +1664,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.job.target }}-
             ${{ runner.os }}-cargo-
+
+      - name: Pre-fetch Cargo dependencies (warm cache)
+        shell: bash
+        run: |
+          echo "=== 预获取 Cargo 依赖 ==="
+          cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
+          
+          # 缓存统计
+          echo ""
+          echo "=== 缓存统计 ==="
+          if [ -d "~/.cargo/registry/cache" ]; then
+            CACHE_SIZE=$(du -sh ~/.cargo/registry/cache 2>/dev/null | awk '{print $1}')
+            echo "Cargo 缓存大小: $CACHE_SIZE"
+          fi
+          TARGET_CACHE=$(find target -type f -name "*.rlib" 2>/dev/null | wc -l)
+          echo "已缓存的库文件数: $TARGET_CACHE"
+        continue-on-error: true
 
       - name: Save Rust toolchain version
         run: |
