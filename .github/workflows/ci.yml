@@ -147,9 +147,26 @@ jobs:
 
     - name: Setup vcpkg with Github Actions binary cache
       uses: lukka/run-vcpkg@v11
+      id: runvcpkg
       with:
         vcpkgDirectory: /opt/artifacts/vcpkg
         vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+
+    - name: Set VCPKG_ROOT environment variable
+      shell: bash
+      run: |
+        echo "VCPKG_ROOT=${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}" >> $GITHUB_ENV
+        echo "VCPKG_ROOT=${{ steps.runvcpkg.outputs.RUNVCPKG_VCPKG_ROOT_OUT }}" >> $GITHUB_OUTPUT
+
+    - name: Verify vcpkg setup
+      shell: bash
+      run: |
+        echo "=== 环境验证 ==="
+        rustc --version
+        cargo --version
+        echo "VCPKG_ROOT: $VCPKG_ROOT"
+        echo "RUST_VERSION: ${{ env.RUST_VERSION }}"
+        ls -la $VCPKG_ROOT || echo "vcpkg directory not found"
 
     - name: Install vcpkg dependencies
       run: |
