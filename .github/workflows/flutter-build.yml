@@ -1012,6 +1012,8 @@ jobs:
 
       - name: Build rustdesk
         run: |
+          # 确保 Rust 工具链在 PATH 中
+          source "$HOME/.cargo/env" || true
           # 再次确认使用正确的 Rust 工具链版本
           rustup default ${{ env.RUST_VERSION }}
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
