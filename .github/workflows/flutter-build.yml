@@ -1,65 +1,111 @@
+###########################################################################
+# RustDesk Flutter 构建工作流
+# 
+# 功能描述：
+#   该工作流负责构建 RustDesk 的 Flutter 版本，支持多平台（Windows、macOS、iOS、Android）
+#   采用模块化设计，支持通过 workflow_call 被其他工作流调用
+#
+# 合规性说明：
+#   - 遵循 GitHub Actions 安全最佳实践
+#   - 使用官方认证的 Action 工具
+#   - 敏感信息通过 Secrets 管理
+#   - 缓存策略优化构建性能
+#
+# 维护说明：
+#   - 修改 vcpkg 版本后需同步更新 ci.yml 和 playground.yml
+#   - Android 构建步骤变更需同步更新 flutter/build_fdroid.sh
+#
+# 版本控制：
+#   - Rust: 1.95
+#   - Flutter: 3.24.5
+#   - vcpkg: 120deac3062162151622ca4860575a33844ba10b (2025.08.27)
+###########################################################################
 name: Build the flutter version of the RustDesk
 
+# 触发条件：仅通过其他工作流调用
 on:
   workflow_call:
     inputs:
+      # 是否上传构建产物到 GitHub Artifacts
       upload-artifact:
         type: boolean
         default: true
+        description: "是否上传构建产物"
+      
+      # 上传时使用的标签名称
       upload-tag:
         type: string
         default: "nightly"
+        description: "构建产物的标签名称"
 
-# NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
-# variables from this workflow!
-#
-# It does NOT read build steps, however, so please fix 'flutter/build_fdroid.sh
-# whenever you add changes to Android CI build action ('build-rustdesk-android')
-# in this file!
-
+# 环境变量配置区域
+# 所有环境变量在此统一管理，便于维护和审计
 env:
-  # Rust 版本配置
+  ###########################################################################
+  # 语言运行时版本配置
+  ###########################################################################
+  # Rust 工具链版本 - 所有平台统一使用相同版本确保一致性
   SCITER_RUST_VERSION: "1.95"
   RUST_VERSION: "1.95"
   MAC_RUST_VERSION: "1.95"
 
-  # Node.js 和 Actions 配置 - 解决 Node.js 20 弃用警告
+  # Flutter 版本配置
+  FLUTTER_VERSION: "3.24.5"                    # 桌面平台使用
+  ANDROID_FLUTTER_VERSION: "3.24.5"            # Android 平台使用
+  FLUTTER_ELINUX_VERSION: "3.16.9"             # ARM64 Linux 特殊版本（官方SDK不兼容）
+
+  ###########################################################################
+  # 工具依赖版本配置
+  ###########################################################################
+  CARGO_NDK_VERSION: "3.1.2"                   # Cargo NDK 插件版本
+  FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"        # Flutter-Rust 桥接版本
+  CARGO_EXPAND_VERSION: "1.0.95"               # Cargo Expand 版本
+  LLVM_VERSION: "15.0.6"                       # LLVM/Clang 版本
+  NDK_VERSION: "r28c"                          # Android NDK 版本
+  SCITER_ARMV7_CMAKE_VERSION: "3.29.7"         # Sciter ARMv7 CMake 版本
+  SCITER_NASM_DEBVERSION: "2.15.05-1"          # Sciter NASM 版本
+
+  ###########################################################################
+  # 网络和稳定性配置
+  ###########################################################################
+  # Node.js 配置 - 解决 Node.js 20 弃用警告
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   # Cargo 网络配置 - 提高下载稳定性
-  CARGO_NET_RETRY: "10"
-  CARGO_HTTP_MULTIPLEXING: "false"
-  CARGO_TERM_COLOR: "always"
+  CARGO_NET_RETRY: "10"                        # 网络重试次数
+  CARGO_HTTP_MULTIPLEXING: "false"             # 禁用 HTTP 多路复用（提高稳定性）
+  CARGO_TERM_COLOR: "always"                   # 始终显示彩色输出
+  CARGO_INCREMENTAL: "true"                    # 启用增量编译
 
-  # 其他配置
-  CARGO_NDK_VERSION: "3.1.2"
-  SCITER_ARMV7_CMAKE_VERSION: "3.29.7"
-  SCITER_NASM_DEBVERSION: "2.15.05-1"
-  LLVM_VERSION: "15.0.6"
-  FLUTTER_VERSION: "3.24.5"
-  ANDROID_FLUTTER_VERSION: "3.24.5"
-  # for arm64 linux because official Dart SDK does not work
-  FLUTTER_ELINUX_VERSION: "3.16.9"
-  TAG_NAME: "${{ inputs.upload-tag }}"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-  # vcpkg 缓存配置
-  VCPKG_DEFAULT_BINARY_CACHE_PATH: ${{ github.workspace }}/vcpkg-cache
-  # vcpkg version: 2025.08.27
-  # If we change the `VCPKG COMMIT_ID`, please remember:
-  # 1. Call `$VCPKG_ROOT/vcpkg x-update-baseline` to update the baseline in `vcpkg.json`.
-  #  Or we may face build issue like 
-  #  https://github.com/rustdesk/rustdesk/actions/runs/14414119794/job/40427970174
-  # 2. Update the `VCPKG_COMMIT_ID` in `ci.yml` and `playground.yml`.
+  ###########################################################################
+  # vcpkg 配置
+  ###########################################################################
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"          # 二进制缓存源
+  VCPKG_DEFAULT_BINARY_CACHE_PATH: ${{ github.workspace }}/vcpkg-cache  # 缓存路径
+  
+  # vcpkg 版本锁定 (2025.08.27)
+  # 修改此版本时需执行以下步骤：
+  # 1. 运行 `$VCPKG_ROOT/vcpkg x-update-baseline` 更新 vcpkg.json 中的 baseline
+  # 2. 同步更新 ci.yml 和 playground.yml 中的 VCPKG_COMMIT_ID
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "2.0.0"
-  NDK_VERSION: "r28c"
-  #signing keys env variable checks
-  ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
-  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
-  UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
-  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
+  
+  # ARMv7 特殊版本 - 最新版本存在兼容性问题
+  ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836"
+
+  ###########################################################################
+  # 构建产物配置
+  ###########################################################################
+  VERSION: "2.0.0"                            # 应用版本号
+  TAG_NAME: "${{ inputs.upload-tag }}"        # 上传标签名称
+
+  ###########################################################################
+  # 敏感信息（通过 Secrets 管理）
+  ###########################################################################
+  ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"   # Android 签名密钥
+  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"         # macOS 签名证书
+  UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"            # 是否上传产物
+  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"             # 签名服务地址
 
 jobs:
   generate-bridge:

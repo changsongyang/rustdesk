@@ -1,29 +1,66 @@
+###########################################################################
+# RustDesk 主持续集成工作流
+# 
+# 功能描述：
+#   该工作流负责 RustDesk 项目的持续集成，包括构建验证和测试
+#   支持多种目标平台和架构
+#
+# 触发条件：
+#   - workflow_dispatch: 手动触发
+#   - pull_request: PR 提交（忽略文档和配置文件变更）
+#   - push: 推送到 master 分支（忽略非代码变更）
+#
+# 合规性说明：
+#   - 遵循 GitHub Actions 安全最佳实践
+#   - 使用官方认证的 Action 工具
+#   - 缓存策略优化构建性能
+#   - 敏感信息通过 Secrets 管理
+#
+# 版本控制：
+#   - Rust: 1.95
+#   - vcpkg: 120deac3062162151622ca4860575a33844ba10b (2025.08.27)
+###########################################################################
 name: CI
 
+# 环境变量配置
 env:
-#   MIN_SUPPORTED_RUST_VERSION: "1.46.0"
-#   CICD_INTERMEDIATES_DIR: "_cicd-intermediates"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-  # for multiarch gcc compatibility
-  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  RUST_VERSION: "1.95"
+  ###########################################################################
+  # 工具链版本配置
+  ###########################################################################
+  RUST_VERSION: "1.95"                         # Rust 工具链版本
+  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"  # vcpkg 版本
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"  # vcpkg 二进制缓存源
 
+  ###########################################################################
+  # 网络和稳定性配置
+  ###########################################################################
+  CARGO_NET_RETRY: "10"                        # Cargo 网络重试次数
+  CARGO_HTTP_MULTIPLEXING: "false"             # 禁用 HTTP 多路复用
+  CARGO_TERM_COLOR: "always"                   # 始终显示彩色输出
+  CARGO_INCREMENTAL: "true"                    # 启用增量编译
+
+# 工作流触发条件
 on:
+  # 手动触发（用于调试和测试）
   workflow_dispatch:
+  
+  # PR 触发（忽略文档变更）
   pull_request:
     paths-ignore:
-      - "docs/**"
-      - "README.md"
+      - "docs/**"                              # 文档目录
+      - "README.md"                            # 主说明文档
+  
+  # 推送触发（仅 master 分支）
   push:
     branches:
       - master
     paths-ignore:
-      - ".github/**"
-      - "docs/**"
-      - "README.md"
-      - "res/**"
-      - "appimage/**"
-      - "flatpak/**"
+      - ".github/**"                           # GitHub 配置目录
+      - "docs/**"                              # 文档目录
+      - "README.md"                            # 主说明文档
+      - "res/**"                               # 资源文件目录
+      - "appimage/**"                          # AppImage 打包目录
+      - "flatpak/**"                           # Flatpak 打包目录
 
 jobs:
   # ensure_cargo_fmt:

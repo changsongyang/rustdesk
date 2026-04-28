@@ -1,66 +1,107 @@
+###########################################################################
+# RustDesk Playground 工作流
+# 
+# 功能描述：
+#   该工作流用于测试不同版本组合的构建兼容性
+#   支持多种 Flutter 和 Rust 版本组合测试
+#
+# 触发条件：
+#   - workflow_dispatch: 手动触发
+#   - 可配置为定时触发（当前注释掉）
+#
+# 合规性说明：
+#   - 遵循 GitHub Actions 安全最佳实践
+#   - 使用官方认证的 Action 工具
+#   - 敏感信息通过 Secrets 管理
+#   - 网络稳定性配置优化
+#
+# 版本控制：
+#   - Rust: 1.95
+#   - Flutter: 3.24.5
+#   - vcpkg: 120deac3062162151622ca4860575a33844ba10b (2025.08.27)
+###########################################################################
 name: playground
 
+# 触发条件
 on:
-  #schedule:
-    # schedule build every night
-  #  - cron: "0/6 * * * *"
+  # 定时触发（当前禁用，可取消注释启用）
+  # schedule:
+  #   - cron: "0 0 * * *"  # 每天凌晨执行
+  
+  # 手动触发
   workflow_dispatch:
     inputs:
       upload-artifact:
         type: boolean
         default: true
+        description: "是否上传构建产物"
 
+# 环境变量配置
 env:
-  # Rust 版本配置
-  RUST_VERSION: "1.95"
+  ###########################################################################
+  # 语言运行时版本配置
+  ###########################################################################
+  RUST_VERSION: "1.95"                          # Rust 工具链版本
+  FLUTTER_VERSION: "3.24.5"                     # Flutter 桌面版本
+  ANDROID_FLUTTER_VERSION: "3.24.5"             # Flutter Android 版本
+  FLUTTER_ELINUX_VERSION: "3.16.9"              # ARM64 Linux 特殊版本
+  FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"         # Flutter-Rust 桥接版本
 
-  # Node.js 和 Actions 配置 - 解决 Node.js 20 弃用警告
+  ###########################################################################
+  # 工具依赖版本配置
+  ###########################################################################
+  CARGO_NDK_VERSION: "3.1.2"                    # Cargo NDK 插件版本
+  CARGO_EXPAND_VERSION: "1.0.95"                # Cargo Expand 版本
+  LLVM_VERSION: "15.0.6"                        # LLVM/Clang 版本
+  NDK_VERSION: "r28c"                           # Android NDK 版本
+
+  ###########################################################################
+  # 网络稳定性配置
+  ###########################################################################
+  # Node.js 配置
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
-  # Cargo 网络配置 - 提高下载稳定性
-  CARGO_NET_RETRY: "10"
-  CARGO_HTTP_MULTIPLEXING: "false"
-  CARGO_TERM_COLOR: "always"
-  CARGO_HTTP_TIMEOUT: "300"
-  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_INCREMENTAL: "true"
-  
-  # vcpkg 网络配置 - 提高依赖下载稳定性
-  VCPKG_MAX_RETRIES: "10"
-  VCPKG_HTTP_TIMEOUT: "300"
-  VCPKG_HTTP_RETRY_DELAY: "5"
-  
-  # Git 网络配置 - 提高克隆稳定性
-  GIT_CONFIG_HTTP_LOW_SPEED_LIMIT: "1000"
-  GIT_CONFIG_HTTP_LOW_SPEED_TIME: "60"
-  GIT_CONFIG_HTTP_FOLLOW_REDIRECTS: "true"
-  GIT_CONFIG_HTTP_VERSION: "HTTP/1.1"
-  
-  # 构建缓存配置
+  # Cargo 网络配置
+  CARGO_NET_RETRY: "10"                         # 网络重试次数
+  CARGO_HTTP_MULTIPLEXING: "false"              # 禁用 HTTP 多路复用
+  CARGO_TERM_COLOR: "always"                    # 始终显示彩色输出
+  CARGO_HTTP_TIMEOUT: "300"                     # HTTP 超时时间（秒）
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"          # 使用 Git CLI 进行 fetch
+  CARGO_INCREMENTAL: "true"                     # 启用增量编译
+
+  # vcpkg 网络配置
+  VCPKG_MAX_RETRIES: "10"                       # 最大重试次数
+  VCPKG_HTTP_TIMEOUT: "300"                     # HTTP 超时时间（秒）
+  VCPKG_HTTP_RETRY_DELAY: "5"                   # 重试延迟（秒）
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite" # 二进制缓存源
   VCPKG_DEFAULT_BINARY_CACHE_PATH: ${{ github.workspace }}/vcpkg-cache
 
-  CARGO_NDK_VERSION: "3.1.2"
-  LLVM_VERSION: "15.0.6"
-  FLUTTER_VERSION: "3.24.5"
-  ANDROID_FLUTTER_VERSION: "3.24.5"
-  FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"
-  # for arm64 linux because official Dart SDK does not work
-  FLUTTER_ELINUX_VERSION: "3.16.9"
-  TAG_NAME: "nightly"
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
-  VERSION: "2.0.0"
-  NDK_VERSION: "r28c"
-  #signing keys env variable checks
-  ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
-  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
-  # To make a custom build with your own servers set the below secret values
-  RS_PUB_KEY: "${{ secrets.RS_PUB_KEY }}"
-  RENDEZVOUS_SERVER: "${{ secrets.RENDEZVOUS_SERVER }}"
-  API_SERVER: "${{ secrets.API_SERVER }}"
-  UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
-  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"
+  # Git 网络配置
+  GIT_CONFIG_HTTP_LOW_SPEED_LIMIT: "1000"       # 低速限制（字节/秒）
+  GIT_CONFIG_HTTP_LOW_SPEED_TIME: "60"          # 低速时间阈值（秒）
+  GIT_CONFIG_HTTP_FOLLOW_REDIRECTS: "true"      # 跟随重定向
+  GIT_CONFIG_HTTP_VERSION: "HTTP/1.1"           # HTTP 版本
+
+  ###########################################################################
+  # 构建配置
+  ###########################################################################
+  VERSION: "2.0.0"                              # 应用版本号
+  TAG_NAME: "nightly"                           # 默认标签名称
+  VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"  # vcpkg 版本
+
+  ###########################################################################
+  # 敏感信息（通过 Secrets 管理）
+  ###########################################################################
+  ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"   # Android 签名密钥
+  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"         # macOS 签名证书
+  UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"            # 是否上传产物
+  
+  # 自定义服务器配置
+  RS_PUB_KEY: "${{ secrets.RS_PUB_KEY }}"                     # 服务器公钥
+  RENDEZVOUS_SERVER: "${{ secrets.RENDEZVOUS_SERVER }}"       # 中继服务器地址
+  API_SERVER: "${{ secrets.API_SERVER }}"                     # API 服务器地址
+  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}"               # 签名服务地址
 
 jobs:
   build-for-macOS:

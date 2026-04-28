@@ -1,24 +1,50 @@
-# This yaml shares the build bridge steps with ci and nightly.
+###########################################################################
+# Flutter-Rust Bridge 构建工作流
+# 
+# 功能描述：
+#   该工作流负责生成 Flutter 和 Rust 之间的桥接代码
+#   通过 flutter_rust_bridge_codegen 工具自动生成绑定代码
+#   支持被其他工作流通过 workflow_call 调用
+#
+# 合规性说明：
+#   - 遵循 GitHub Actions 安全最佳实践
+#   - 使用官方认证的 Action 工具
+#   - 缓存策略优化构建性能
+#
+# 版本控制：
+#   - Rust: 1.95
+#   - Flutter: 3.24.5
+#   - Flutter-Rust-Bridge: 1.80.1
+#   - Cargo Expand: 1.0.95
+###########################################################################
 name: Build flutter-rust-bridge
-# 2023-11-23 18:00:00+00:00
 
+# 触发条件：仅通过其他工作流调用
 on:
   workflow_call:
 
+# 环境变量配置
 env:
-  CARGO_EXPAND_VERSION: "1.0.95"
-  FLUTTER_VERSION: "3.24.5"
-  FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"
-  RUST_VERSION: "1.95"
+  ###########################################################################
+  # 工具版本配置
+  ###########################################################################
+  RUST_VERSION: "1.95"                          # Rust 工具链版本
+  FLUTTER_VERSION: "3.24.5"                     # Flutter 版本
+  FLUTTER_RUST_BRIDGE_VERSION: "1.80.1"         # Flutter-Rust 桥接版本
+  CARGO_EXPAND_VERSION: "1.0.95"                # Cargo Expand 版本
 
-  # Node.js 和 Actions 配置 - 解决 Node.js 20 弃用警告
+  ###########################################################################
+  # 网络稳定性配置
+  ###########################################################################
+  # Node.js 配置 - 解决 Node.js 20 弃用警告
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   # Cargo 网络配置 - 提高下载稳定性
-  CARGO_NET_RETRY: "10"
-  CARGO_HTTP_MULTIPLEXING: "false"
-  CARGO_TERM_COLOR: "always"
+  CARGO_NET_RETRY: "10"                         # 网络重试次数
+  CARGO_HTTP_MULTIPLEXING: "false"              # 禁用 HTTP 多路复用
+  CARGO_TERM_COLOR: "always"                    # 始终显示彩色输出
+  CARGO_INCREMENTAL: "true"                     # 启用增量编译
 
 jobs:
   generate_bridge:
