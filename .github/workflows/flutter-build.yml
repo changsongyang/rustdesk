@@ -756,6 +756,7 @@ jobs:
       - name: Build rustdesk lib with retry
         run: |
           # 确保 Rust 工具链在 PATH 中
+          export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
           
           # 设置 iOS 构建环境变量
@@ -768,6 +769,11 @@ jobs:
           # 设置目标特定的链接器标志
           export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER=$(xcrun --sdk iphoneos --find clang)
           
+          # 设置 CFLAGS 和 LDFLAGS 以确保正确链接
+          export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          export LDFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          
           rustup target add ${{ matrix.job.target }}
           
           # Retry mechanism for cargo build
@@ -779,6 +785,8 @@ jobs:
             echo "=== 构建尝试 $ATTEMPT/$MAX_RETRIES ==="
             echo "SDKROOT: $SDKROOT"
             echo "CC: $CC"
+            echo "CFLAGS: $CFLAGS"
+            echo "LDFLAGS: $LDFLAGS"
             if cargo build --features flutter,hwcodec --release --target ${{ matrix.job.target }} --lib; then
               echo "✅ 构建成功"
               exit 0
