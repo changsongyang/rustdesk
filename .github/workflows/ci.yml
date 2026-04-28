@@ -163,6 +163,12 @@ jobs:
         targets: ${{ matrix.job.target }}
         components: ''
 
+    - name: Set Rust environment
+      shell: bash
+      run: |
+        rustup override set ${{ env.RUST_VERSION }}
+        rustup target add ${{ matrix.job.target }}
+
     - name: Show version information (Rust, cargo, GCC)
       shell: bash
       run: |
@@ -172,11 +178,12 @@ jobs:
         rustup default
         cargo -V
         rustc -V
+        cargo metadata --format-version=1 | head -5 || true
 
     - uses: Swatinem/rust-cache@v2
 
     - name: Build
-      run: cargo build --locked --target=${{ matrix.job.target }}
+      run: cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }}
       shell: bash
 
     - name: clean
@@ -241,5 +248,5 @@ jobs:
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 
     - name: Run tests
-      run: cargo test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+      run: cargo +${{ env.RUST_VERSION }} test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
       shell: bash
