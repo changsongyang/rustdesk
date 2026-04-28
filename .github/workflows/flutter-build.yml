@@ -1023,6 +1023,7 @@ jobs:
         run: |
           clang --version || true
           # 确保 Rust 工具链在 PATH 中
+          export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
           rustup -V
           rustup toolchain list
@@ -1034,6 +1035,7 @@ jobs:
       - name: Build rustdesk
         run: |
           # 确保 Rust 工具链在 PATH 中
+          export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
           # 再次确认使用正确的 Rust 工具链版本
           rustup default ${{ env.RUST_VERSION }}
