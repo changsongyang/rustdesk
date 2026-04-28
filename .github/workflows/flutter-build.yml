@@ -501,7 +501,9 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
         with:
-          toolchain: nightly-2023-10-13-${{ matrix.job.target }} # must use nightly here, because of abi_thiscall feature required
+          # 使用更新的 nightly 版本以支持 Cargo.lock 版本 4 格式
+          # abi_thiscall feature 需要 nightly 版本
+          toolchain: nightly-2024-01-01
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
