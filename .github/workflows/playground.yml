@@ -24,6 +24,7 @@ env:
   CARGO_TERM_COLOR: "always"
   CARGO_HTTP_TIMEOUT: "300"
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_INCREMENTAL: "true"
   
   # vcpkg 网络配置 - 提高依赖下载稳定性
   VCPKG_MAX_RETRIES: "10"
@@ -35,6 +36,9 @@ env:
   GIT_CONFIG_HTTP_LOW_SPEED_TIME: "60"
   GIT_CONFIG_HTTP_FOLLOW_REDIRECTS: "true"
   GIT_CONFIG_HTTP_VERSION: "HTTP/1.1"
+  
+  # 构建缓存配置
+  VCPKG_DEFAULT_BINARY_CACHE_PATH: ${{ github.workspace }}/vcpkg-cache
 
   CARGO_NDK_VERSION: "3.1.2"
   LLVM_VERSION: "15.0.6"

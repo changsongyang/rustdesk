@@ -66,14 +66,20 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: bridge-${{ matrix.job.os }}
+          prefix-key: bridge-${{ matrix.job.os }}-${{ env.RUST_VERSION }}
+          workspaces: |
+            target/
+          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
       - name: Cache Bridge
         id: cache-bridge
         uses: actions/cache@v5
         with:
           path: /tmp/flutter_rust_bridge
-          key: vcpkg-${{ matrix.job.arch }}
+          key: bridge-${{ env.FLUTTER_RUST_BRIDGE_VERSION }}-${{ env.FLUTTER_VERSION }}
+          restore-keys: |
+            bridge-${{ env.FLUTTER_RUST_BRIDGE_VERSION }}-
+            bridge-
 
       - name: Install flutter
         uses: subosito/flutter-action@v2

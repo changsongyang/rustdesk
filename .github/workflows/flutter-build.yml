@@ -177,7 +177,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: ${{ matrix.job.os }}
+          prefix-key: ${{ matrix.job.os }}-${{ env.RUST_VERSION }}
+          workspaces: |
+            target/
+          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
       - name: Pre-fetch Cargo dependencies (warm cache)
         shell: bash
@@ -189,6 +192,8 @@ jobs:
           # 预安装常用工具
           cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked 2>&1 | tail -5 || echo "cargo-ndk 已安装"
         continue-on-error: true
+        env:
+          CARGO_INCREMENTAL: "true"
 
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
@@ -651,8 +656,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: rustdesk-lib-cache-ios
+          prefix-key: rustdesk-lib-cache-ios-${{ env.RUST_VERSION }}
           key: ${{ matrix.job.target }}
+          workspaces: |
+            target/
+          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
       - name: Pre-fetch Cargo dependencies (warm cache)
         shell: bash
@@ -660,6 +668,8 @@ jobs:
           echo "=== 预获取 Cargo 依赖 ==="
           cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
         continue-on-error: true
+        env:
+          CARGO_INCREMENTAL: "true"
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -883,7 +893,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: ${{ matrix.job.os }}
+          prefix-key: ${{ matrix.job.os }}-${{ env.RUST_VERSION }}
+          workspaces: |
+            target/
+          save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
       - name: Restore bridge files
         uses: actions/download-artifact@master
@@ -934,6 +947,8 @@ jobs:
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+        env:
+          CARGO_INCREMENTAL: "true"
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
