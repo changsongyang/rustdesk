@@ -232,6 +232,11 @@ jobs:
         shell: bash
         run: |
           echo "=== 预获取 Cargo 依赖 ==="
+          # 确保使用正确的 Rust 工具链版本
+          rustup default ${{ env.RUST_VERSION }}
+          rustc --version
+          cargo --version
+          
           # 预获取依赖以预热缓存
           cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
           
@@ -501,9 +506,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
         with:
-          # 使用更新的 nightly 版本以支持 Cargo.lock 版本 4 格式
-          # abi_thiscall feature 需要 nightly 版本
-          toolchain: nightly-2024-01-01
+          toolchain: nightly-2023-10-13-${{ matrix.job.target }} # must use nightly here, because of abi_thiscall feature required
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
@@ -542,6 +545,11 @@ jobs:
         id: build
         shell: bash
         run: |
+          # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
+          rustup default ${{ env.RUST_VERSION }}
+          rustc --version
+          cargo --version
+          
           python3 res/inline-sciter.py
           # Patch sciter x86
           sed -i 's/branch = "dyn"/branch = "dyn_x86"/g' ./Cargo.toml
@@ -981,12 +989,15 @@ jobs:
           clang --version || true
           rustup -V
           rustup toolchain list
-          rustup default
+          # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
+          rustup default ${{ env.RUST_VERSION }}
           cargo -V
           rustc -V
 
       - name: Build rustdesk
         run: |
+          # 再次确认使用正确的 Rust 工具链版本
+          rustup default ${{ env.RUST_VERSION }}
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
             MIN_MACOS_VERSION="12.3"
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py

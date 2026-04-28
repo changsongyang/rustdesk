@@ -233,7 +233,8 @@ jobs:
         run: |
           rustup -V
           rustup toolchain list
-          rustup default
+          # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
+          rustup default ${{ env.RUST_VERSION }}
           cargo -V
           rustc -V
           echo "Using Rust toolchain: $(rustup show active-toolchain)"
@@ -303,7 +304,8 @@ jobs:
           clang --version || true
           rustup -V
           rustup toolchain list
-          rustup default
+          # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
+          rustup default ${{ env.RUST_VERSION }}
           cargo -V
           rustc -V
 
@@ -481,7 +483,8 @@ jobs:
         run: |
           rustup -V
           rustup toolchain list
-          rustup default
+          # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
+          rustup default ${{ env.RUST_VERSION }}
           cargo -V
           rustc -V
           echo "Using Rust toolchain: $(rustup show active-toolchain)"
