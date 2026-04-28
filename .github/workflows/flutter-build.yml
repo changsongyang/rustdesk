@@ -771,8 +771,8 @@ jobs:
           
           # 设置 CFLAGS 和 LDFLAGS 以确保正确链接
           export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
-          export LDFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
-          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          export LDFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreMedia -framework AVFoundation"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -C link-arg=-framework -C link-arg=Foundation -C link-arg=-framework -C link-arg=UIKit -C link-arg=-framework -C link-arg=CoreGraphics -C link-arg=-framework -C link-arg=CoreMedia -C link-arg=-framework -C link-arg=AVFoundation"
           
           rustup target add ${{ matrix.job.target }}
           
