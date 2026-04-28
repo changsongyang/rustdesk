@@ -511,6 +511,12 @@ jobs:
         with:
           version: ${{ env.LLVM_VERSION }}
 
+      - name: Set LIBCLANG_PATH for 32-bit build
+        shell: bash
+        run: |
+          echo "LIBCLANG_PATH=C:\Program Files (x86)\LLVM\bin" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=C:\Program Files (x86)\LLVM\bin" >> $GITHUB_OUTPUT
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@v1
         with:
