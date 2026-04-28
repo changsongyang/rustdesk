@@ -273,19 +273,13 @@ jobs:
           cd $(dirname $(dirname $(which flutter)))
           [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]] && git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
 
-      - name: Validate build environment
+      - name: Validate build environment (before vcpkg)
         run: |
-          echo "=== 环境验证 ==="
+          echo "=== 环境验证（vcpkg 之前） ==="
           rustc --version
           cargo --version
-          echo "VCPKG_ROOT: $VCPKG_ROOT"
           echo "RUST_VERSION: $RUST_VERSION"
-          if [ -d "$VCPKG_ROOT" ]; then
-            echo "✅ vcpkg directory exists"
-          else
-            echo "❌ vcpkg directory not found"
-            exit 1
-          fi
+          echo "FLUTTER_VERSION: $FLUTTER_VERSION"
         shell: bash
 
       - name: Setup vcpkg with Github Actions binary cache
@@ -313,6 +307,19 @@ jobs:
             exit 1
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
+        shell: bash
+
+      - name: Validate vcpkg installation
+        run: |
+          echo "=== vcpkg 环境验证 ==="
+          echo "VCPKG_ROOT: $VCPKG_ROOT"
+          if [ -d "$VCPKG_ROOT" ]; then
+            echo "✅ vcpkg directory exists"
+            echo "vcpkg version: $($VCPKG_ROOT/vcpkg --version)"
+          else
+            echo "❌ vcpkg directory not found"
+            exit 1
+          fi
         shell: bash
 
       - name: Build rustdesk
