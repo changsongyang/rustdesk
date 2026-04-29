@@ -217,19 +217,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/bin/
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ matrix.job.target }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-deps-${{ runner.os }}-${{ matrix.job.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.job.target }}-
-            ${{ runner.os }}-cargo-
+            cargo-deps-${{ runner.os }}-${{ matrix.job.target }}-
+            cargo-deps-${{ runner.os }}-
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: ${{ matrix.job.os }}-${{ env.RUST_VERSION }}
+          prefix-key: rustdesk-${{ matrix.job.os }}-${{ env.RUST_VERSION }}
           workspaces: |
             target/
           save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
