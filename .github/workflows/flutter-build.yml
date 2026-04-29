@@ -565,11 +565,13 @@ jobs:
               os: windows-2022,
               arch: x86,
               vcpkg-triplet: x86-windows-static,
-              llvm-path: "C:\\Program Files (x86)\\LLVM\\bin",
+              # 注意：虽然目标是32位，但build.rs（bindgen）是在64位主机上运行的，需要64位LLVM
+              llvm-path: "C:\\Program Files\\LLVM\\bin",
+              llvm-path-32bit: "C:\\Program Files (x86)\\LLVM\\bin",
             }
           # - { target: aarch64-pc-windows-msvc, os: windows-2022 }
     env:
-      # 作业级别环境变量，确保所有步骤都使用正确的32位LLVM路径
+      # 作业级别环境变量：使用64位LLVM，因为build.rs（bindgen）在64位主机上运行
       LIBCLANG_PATH: ${{ matrix.job.llvm-path }}
       LIBCLANG: "${{ matrix.job.llvm-path }}\\libclang.dll"
     steps:
@@ -585,26 +587,28 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install LLVM and Clang
-        uses: rustdesk-org/install-llvm-action-32bit@master
+      - name: Install 64-bit LLVM and Clang (for build.rs/bindgen)
+        uses: KyleMayes/install-llvm-action@v1
         with:
           version: ${{ env.LLVM_VERSION }}
+          arch: x64
 
       - name: Set LIBCLANG_PATH for 32-bit build
         shell: cmd
         run: |
-          echo === LLVM 验证 (32位) ===
-          set "LIBCLANG_PATH=C:\Program Files (x86)\LLVM\bin"
+          echo === LLVM 验证 (64位用于build.rs) ===
+          :: 注意：虽然目标是32位，但build.rs（bindgen）是在64位主机上运行的，需要64位LLVM
+          set "LIBCLANG_PATH=C:\Program Files\LLVM\bin"
           set "LIBCLANG=%LIBCLANG_PATH%\libclang.dll"
           
           echo LIBCLANG_PATH=%LIBCLANG_PATH%
           
           if exist "%LIBCLANG%" (
-            echo ✅ 找到 libclang.dll
+            echo ✅ 找到 64位 libclang.dll
           ) else (
-            echo ❌ libclang.dll 不存在，尝试手动下载...
-            curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win32.exe" -o llvm-installer.exe
-            llvm-installer.exe /S /D="C:\Program Files (x86)\LLVM"
+            echo ❌ 64位 libclang.dll 不存在，尝试手动下载...
+            curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe" -o llvm-installer.exe
+            llvm-installer.exe /S /D="C:\Program Files\LLVM"
           )
           
           echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_ENV%
