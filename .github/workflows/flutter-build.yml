@@ -142,8 +142,13 @@ jobs:
               os: windows-2022,
               arch: x86_64,
               vcpkg-triplet: x64-windows-static,
+              llvm-path: "C:\\Program Files\\LLVM\\bin",
             }
           # - { target: aarch64-pc-windows-msvc, os: windows-2022, arch: aarch64 }
+    env:
+      # 作业级别环境变量，确保所有步骤都使用正确的64位LLVM路径
+      LIBCLANG_PATH: ${{ matrix.job.llvm-path }}
+      LIBCLANG: "${{ matrix.job.llvm-path }}\\libclang.dll"
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v7
@@ -258,9 +263,9 @@ jobs:
       - name: Verify and setup LLVM
         shell: cmd
         run: |
-          echo === LLVM 验证 ===
-          set LIBCLANG_PATH=C:\Program Files\LLVM\bin
-          set LIBCLANG=%LIBCLANG_PATH%\libclang.dll
+          echo === LLVM 验证 (64位) ===
+          set "LIBCLANG_PATH=C:\Program Files\LLVM\bin"
+          set "LIBCLANG=%LIBCLANG_PATH%\libclang.dll"
           
           echo LIBCLANG_PATH=%LIBCLANG_PATH%
           
@@ -269,11 +274,16 @@ jobs:
           ) else (
             echo ❌ libclang.dll 不存在，尝试手动下载...
             curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe" -o llvm-installer.exe
-            llvm-installer.exe /S /D=C:\Program Files\LLVM
+            llvm-installer.exe /S /D="C:\Program Files\LLVM"
           )
           
-          echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_ENV%
-          echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_OUTPUT%
+          if not exist "%LIBCLANG%" (
+            echo ❌ 无法找到 libclang.dll，构建将失败
+            exit 1
+          )
+          
+          echo "LIBCLANG_PATH=%LIBCLANG_PATH%">>%GITHUB_ENV%
+          echo "LIBCLANG_PATH=%LIBCLANG_PATH%">>%GITHUB_OUTPUT%
           echo LIBCLANG_PATH 设置完成
 
       - name: Install flutter
@@ -529,8 +539,13 @@ jobs:
               os: windows-2022,
               arch: x86,
               vcpkg-triplet: x86-windows-static,
+              llvm-path: "C:\\Program Files (x86)\\LLVM\\bin",
             }
           # - { target: aarch64-pc-windows-msvc, os: windows-2022 }
+    env:
+      # 作业级别环境变量，确保所有步骤都使用正确的32位LLVM路径
+      LIBCLANG_PATH: ${{ matrix.job.llvm-path }}
+      LIBCLANG: "${{ matrix.job.llvm-path }}\\libclang.dll"
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@v7
