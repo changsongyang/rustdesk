@@ -2109,12 +2109,25 @@ jobs:
             # we have libopus compiled by us.
             apt-get remove -y libopus-dev || true
             
-            # For aarch64, install vcpkg dependencies inside the container
+            # For aarch64, install vcpkg and dependencies inside the container
             if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
-              echo "=== Installing vcpkg dependencies for aarch64 ==="
+              echo "=== Installing vcpkg for aarch64 ==="
               export VCPKG_ROOT=/opt/artifacts/vcpkg
               export VCPKG_DEFAULT_HOST_TRIPLET=${{ matrix.job.vcpkg-triplet }}
               
+              # Check if vcpkg executable exists, if not, clone and build vcpkg
+              if [ ! -f "$VCPKG_ROOT/vcpkg" ]; then
+                echo "vcpkg not found, installing vcpkg..."
+                mkdir -p "$VCPKG_ROOT"
+                git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+                cd "$VCPKG_ROOT"
+                git checkout ${{ env.VCPKG_COMMIT_ID }}
+                ./bootstrap-vcpkg.sh
+              else
+                echo "vcpkg already installed"
+              fi
+              
+              # Install vcpkg dependencies
               if [ ! -d "$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}" ]; then
                 echo "Installing vcpkg dependencies..."
                 $VCPKG_ROOT/vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
