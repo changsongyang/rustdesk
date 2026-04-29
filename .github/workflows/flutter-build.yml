@@ -1203,11 +1203,27 @@ jobs:
 
       - name: Show version information (Rust, cargo, Clang)
         shell: bash
+        env:
+          PATH: "$HOME/.cargo/bin:${{ env.PATH }}"
         run: |
           clang --version || true
           # 确保 Rust 工具链在 PATH 中
           export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
+          
+          # 调试：检查 PATH 和 cargo 位置
+          echo "=== PATH 调试 ==="
+          echo "PATH=$PATH"
+          echo "HOME=$HOME"
+          ls -la "$HOME/.cargo/bin/" 2>/dev/null || echo ".cargo/bin 目录不存在"
+          
+          # 验证 cargo 是否可用
+          if ! command -v cargo &>/dev/null; then
+            echo "❌ cargo 不在 PATH 中，尝试查找..."
+            find "$HOME/.cargo" -name "cargo" -type f 2>/dev/null | head -5
+            exit 1
+          fi
+          
           rustup -V
           rustup toolchain list
           # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
@@ -1216,6 +1232,8 @@ jobs:
           rustc -V
 
       - name: Build rustdesk
+        env:
+          PATH: "$HOME/.cargo/bin:${{ env.PATH }}"
         run: |
           # 确保 Rust 工具链在 PATH 中
           export PATH="$HOME/.cargo/bin:$PATH"
