@@ -828,6 +828,11 @@ jobs:
           export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
           
+          # 清除 macOS 特定环境变量，避免干扰 iOS 构建
+          unset MACOSX_DEPLOYMENT_TARGET
+          unset CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER
+          unset CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS
+          
           # 设置 iOS 构建环境变量
           export IPHONEOS_DEPLOYMENT_TARGET="12.0"
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
