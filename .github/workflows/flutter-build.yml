@@ -340,9 +340,20 @@ jobs:
       - name: Build rustdesk
         env:
           LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
+          LIBCLANG: "C:\\Program Files\\LLVM\\bin\\libclang.dll"
         run: |
           # Windows: build RustDesk
           echo "LIBCLANG_PATH=$env:LIBCLANG_PATH"
+          echo "LIBCLANG=$env:LIBCLANG"
+          # 验证 LLVM 目录存在
+          if (Test-Path "C:\\Program Files\\LLVM\\bin\\libclang.dll") {
+            echo "✅ libclang.dll found"
+          } else {
+            echo "❌ libclang.dll not found, listing LLVM bin contents:"
+            Get-ChildItem "C:\\Program Files\\LLVM\\bin" -ErrorAction SilentlyContinue | Select-Object -First 10
+            # 尝试查找其他位置的 libclang.dll
+            Get-ChildItem -Path "C:\\" -Filter "libclang.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5
+          }
           python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
 
