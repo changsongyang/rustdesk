@@ -1234,6 +1234,7 @@ jobs:
       - name: Build rustdesk
         env:
           PATH: "$HOME/.cargo/bin:${{ env.PATH }}"
+          CARGO_INCREMENTAL: "true"
         run: |
           # 确保 Rust 工具链在 PATH 中
           export PATH="$HOME/.cargo/bin:$PATH"
@@ -1248,8 +1249,6 @@ jobs:
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
-        env:
-          CARGO_INCREMENTAL: "true"
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
