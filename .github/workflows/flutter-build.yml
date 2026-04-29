@@ -1,9 +1,15 @@
 ###########################################################################
 # RustDesk Flutter 构建工作流
-# 
+
 # 功能描述：
 #   该工作流负责构建 RustDesk 的 Flutter 版本，支持多平台（Windows、macOS、iOS、Android）
 #   采用模块化设计，支持通过 workflow_call 被其他工作流调用
+#
+# 最佳实践：
+#   - 使用 moonrepo/setup-rust@v1 配置 Rust 工具链
+#   - 分层缓存策略：Swatinem/rust-cache + 依赖目录缓存
+#   - 质量门禁：rustfmt、clippy 检查
+#   - 安全审计：cargo-deny 依赖漏洞扫描
 #
 # 合规性说明：
 #   - 遵循 GitHub Actions 安全最佳实践
