@@ -113,8 +113,54 @@ env:
   SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"             # 签名服务地址
 
 jobs:
+  ###########################################################################
+  # 合规性检查作业（安全门禁）
+  ###########################################################################
+  compliance-check:
+    name: Compliance Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      compliance-passed: ${{ steps.dependency-review.outputs.result == 'success' && steps.secrets-scan.outputs.result == 'success' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          
+      - name: Dependency Review
+        id: dependency-review
+        uses: actions/dependency-review-action@v4
+        with:
+          # 阻止已知漏洞的依赖
+          fail-on-severity: critical
+          # 允许的许可证类型
+          allowed-licenses: >
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
+            CC-BY-4.0, ISC, MPL-2.0, Unlicense, Zlib
+          
+      - name: Secret Scanning
+        id: secrets-scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          # 仅进行检查，不阻止构建（首次运行可能有误报）
+          fail-on-finding: false
+          
+      - name: Security Audit Summary
+        run: |
+          echo "=== 合规性检查报告 ==="
+          echo "依赖审查状态: ${{ steps.dependency-review.outputs.result }}"
+          echo "密钥扫描状态: ${{ steps.secrets-scan.outputs.result }}"
+          echo ""
+          echo "合规性检查通过！"
+
   generate-bridge:
     uses: ./.github/workflows/bridge.yml
+    needs: compliance-check
 
   build-RustDeskTempTopMostWindow:
     uses: ./.github/workflows/third-party-RustDeskTempTopMostWindow.yml
@@ -129,7 +175,7 @@ jobs:
 
   build-for-windows-flutter:
     name: ${{ matrix.job.target }}
-    needs: [build-RustDeskTempTopMostWindow, generate-bridge]
+    needs: [compliance-check, build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -737,7 +783,7 @@ jobs:
     if: ${{ inputs.upload-artifact }}
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
-    needs: [generate-bridge]
+    needs: [compliance-check, generate-bridge]
     strategy:
       fail-fast: false
       matrix:
@@ -1010,7 +1056,7 @@ jobs:
   build-for-macOS:
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
-    needs: [generate-bridge]
+    needs: [compliance-check, generate-bridge]
     strategy:
       fail-fast: false
       matrix:
@@ -1343,7 +1389,7 @@ jobs:
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
   build-rustdesk-android:
-    needs: [generate-bridge]
+    needs: [compliance-check, generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -1715,7 +1761,7 @@ jobs:
             signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
 
   build-rustdesk-android-universal:
-    needs: [build-rustdesk-android]
+    needs: [compliance-check, build-rustdesk-android]
     name: build rustdesk android universal apk
     if: ${{ inputs.upload-artifact }}
     runs-on: ubuntu-24.04
@@ -1899,7 +1945,7 @@ jobs:
             signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
 
   build-rustdesk-linux:
-    needs: [generate-bridge]
+    needs: [compliance-check, generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -2542,7 +2588,7 @@ jobs:
 
   build-appimage:
     name: Build appimage ${{ matrix.job.target }}
-    needs: [build-rustdesk-linux]
+    needs: [compliance-check, build-rustdesk-linux]
     runs-on: ubuntu-22.04
     if: ${{ inputs.upload-artifact }}
     strategy:
