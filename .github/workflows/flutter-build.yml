@@ -2019,7 +2019,7 @@ jobs:
         if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgDirectory: /opt/artifacts/vcpkg
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg
           vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
           doNotCache: false
 
@@ -2063,7 +2063,7 @@ jobs:
             ls -l /opt/artifacts/vcpkg/installed 2>/dev/null || echo "vcpkg installed directory not found"
           dockerRunArgs: |
             --volume "${PWD}:/workspace"
-            --volume "/opt/artifacts:/opt/artifacts"
+            --volume "${{ runner.workspace }}/vcpkg:/opt/artifacts/vcpkg"
             -e "LANG=C.UTF-8"
             -e "LC_ALL=C.UTF-8"
             -e "PYTHONIOENCODING=utf-8"
