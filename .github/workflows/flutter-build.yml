@@ -831,7 +831,13 @@ jobs:
           # 设置 CFLAGS 和 LDFLAGS 以确保正确链接
           export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
           export LDFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreMedia -framework AVFoundation"
-          export ASFLAGS="-arch arm64"
+          export ASFLAGS="-arch arm64 -isysroot $SDKROOT"
+          
+          # ring crate 特定配置
+          export RING_ASM_FLAGS="-arch arm64"
+          export CC_aarch64_apple_ios=$(xcrun --sdk iphoneos --find clang)
+          export CXX_aarch64_apple_ios=$(xcrun --sdk iphoneos --find clang++)
+          export AR_aarch64_apple_ios=$(xcrun --sdk iphoneos --find ar)
           
           # 打印调试信息
           echo "=== iOS 构建环境 ==="
@@ -842,6 +848,9 @@ jobs:
           echo "CFLAGS: $CFLAGS"
           echo "LDFLAGS: $LDFLAGS"
           echo "ASFLAGS: $ASFLAGS"
+          echo "RING_ASM_FLAGS: $RING_ASM_FLAGS"
+          echo "CC_aarch64_apple_ios: $CC_aarch64_apple_ios"
+          echo "CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS: $CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS"
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -C link-arg=-framework -C link-arg=Foundation -C link-arg=-framework -C link-arg=UIKit -C link-arg=-framework -C link-arg=CoreGraphics -C link-arg=-framework -C link-arg=CoreMedia -C link-arg=-framework -C link-arg=AVFoundation"
           
           rustup target add ${{ matrix.job.target }}
