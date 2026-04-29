@@ -1181,29 +1181,29 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
 
+      - name: Ensure cargo is in PATH before build
+        shell: bash
+        run: |
+          echo "=== 确保 cargo 在 PATH 中 ==="
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          # 验证 cargo 是否在 PATH 中
+          if command -v cargo &>/dev/null; then
+            echo "✅ cargo 在 PATH 中: $(which cargo)"
+          else
+            echo "❌ cargo 不在 PATH 中"
+            echo "检查 .cargo/bin 目录..."
+            ls -la "$HOME/.cargo/bin" 2>/dev/null || echo ".cargo/bin 目录不存在"
+            exit 1
+          fi
+
       - name: Show version information (Rust, cargo, Clang)
         shell: bash
         run: |
           clang --version || true
           # 确保 Rust 工具链在 PATH 中
           export PATH="$HOME/.cargo/bin:$PATH"
-          echo "=== PATH 设置 ==="
-          echo "PATH=$PATH"
-          # 验证 cargo 是否在 PATH 中
-          if command -v cargo &>/dev/null; then
-            echo "✅ cargo 在 PATH 中"
-          else
-            echo "❌ cargo 不在 PATH 中"
-            echo "检查 .cargo/bin 目录..."
-            ls -la "$HOME/.cargo/bin" 2>/dev/null || echo ".cargo/bin 目录不存在"
-          fi
-          # 尝试 source env 文件
-          if [ -f "$HOME/.cargo/env" ]; then
-            echo "✅ .cargo/env 文件存在，source 中..."
-            source "$HOME/.cargo/env"
-          else
-            echo "⚠️ .cargo/env 文件不存在"
-          fi
+          source "$HOME/.cargo/env" || true
           rustup -V
           rustup toolchain list
           # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
