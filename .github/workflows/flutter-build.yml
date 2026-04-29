@@ -156,11 +156,11 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-            # 尽早设置 LIBCLANG_PATH，确保后续所有步骤都使用正确的64位LLVM
+            // 尽早设置 LIBCLANG_PATH，确保后续所有步骤都使用正确的64位LLVM
             const llvmPath = 'C:\\Program Files\\LLVM\\bin';
             core.exportVariable('LIBCLANG_PATH', llvmPath);
             core.exportVariable('LIBCLANG', llvmPath + '\\libclang.dll');
-            # 将LLVM路径添加到PATH开头，确保优先使用64位版本
+            // 将LLVM路径添加到PATH开头，确保优先使用64位版本
             const currentPath = process.env.PATH || '';
             if (!currentPath.startsWith(llvmPath)) {
               core.exportVariable('PATH', llvmPath + ';' + currentPath);
