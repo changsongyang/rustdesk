@@ -841,6 +841,8 @@ jobs:
         shell: bash
         run: |
           echo "=== 预获取 Cargo 依赖 ==="
+          export PATH="$HOME/.cargo/bin:$PATH"
+          source "$HOME/.cargo/env" || true
           cargo fetch --target ${{ matrix.job.target }} 2>&1 | head -20 || echo "预获取完成或已缓存"
         continue-on-error: true
         env:
@@ -853,10 +855,25 @@ jobs:
           path: ./
 
       - name: Build rustdesk lib with retry
+        env:
+          PATH: "$HOME/.cargo/bin:${{ env.PATH }}"
         run: |
           # 确保 Rust 工具链在 PATH 中
           export PATH="$HOME/.cargo/bin:$PATH"
           source "$HOME/.cargo/env" || true
+          
+          # 验证 cargo 是否可用
+          echo "=== 检查 cargo 可用性 ==="
+          which cargo || echo "cargo not found in PATH"
+          if command -v cargo &> /dev/null; then
+            echo "✅ cargo found: $(which cargo)"
+            cargo --version
+          else
+            echo "❌ cargo not found"
+            echo "PATH: $PATH"
+            ls -la "$HOME/.cargo/bin/" 2>/dev/null || echo ".cargo/bin not found"
+            exit 1
+          fi
           
           # 清除 macOS 特定环境变量，避免干扰 iOS 构建
           unset MACOSX_DEPLOYMENT_TARGET
