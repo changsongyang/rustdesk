@@ -1990,6 +1990,10 @@ jobs:
           dockerRunArgs: |
             --volume "${PWD}:/workspace"
             --volume "/opt/artifacts:/opt/artifacts"
+            -e "LANG=C.UTF-8"
+            -e "LC_ALL=C.UTF-8"
+            -e "PYTHONIOENCODING=utf-8"
+            -e "PYTHONUTF8=1"
           shell: /bin/bash
           install: |
             apt-get update -y
