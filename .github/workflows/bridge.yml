@@ -36,9 +36,8 @@ env:
   ###########################################################################
   # 网络稳定性配置
   ###########################################################################
-  # Node.js 配置 - 解决 Node.js 20 弃用警告
+  # Node.js 配置 - 使用 Node 24 版本
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   # Cargo 网络配置 - 提高下载稳定性
   CARGO_NET_RETRY: "10"                         # 网络重试次数
