@@ -813,6 +813,8 @@ jobs:
           export CC=$(xcrun --sdk iphoneos --find clang)
           export CXX=$(xcrun --sdk iphoneos --find clang++)
           export LD=$(xcrun --sdk iphoneos --find ld)
+          export AR=$(xcrun --sdk iphoneos --find ar)
+          export AS=$(xcrun --sdk iphoneos --find as)
           
           # 设置目标特定的链接器标志
           export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER=$(xcrun --sdk iphoneos --find clang)
@@ -820,6 +822,17 @@ jobs:
           # 设置 CFLAGS 和 LDFLAGS 以确保正确链接
           export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
           export LDFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreMedia -framework AVFoundation"
+          export ASFLAGS="-arch arm64"
+          
+          # 打印调试信息
+          echo "=== iOS 构建环境 ==="
+          echo "SDKROOT: $SDKROOT"
+          echo "CC: $CC"
+          echo "AR: $AR"
+          echo "AS: $AS"
+          echo "CFLAGS: $CFLAGS"
+          echo "LDFLAGS: $LDFLAGS"
+          echo "ASFLAGS: $ASFLAGS"
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -C link-arg=-framework -C link-arg=Foundation -C link-arg=-framework -C link-arg=UIKit -C link-arg=-framework -C link-arg=CoreGraphics -C link-arg=-framework -C link-arg=CoreMedia -C link-arg=-framework -C link-arg=AVFoundation"
           
           rustup target add ${{ matrix.job.target }}
