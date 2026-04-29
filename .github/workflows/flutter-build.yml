@@ -256,15 +256,34 @@ jobs:
           version: ${{ env.LLVM_VERSION }}
           arch: x64
 
-      - name: Set LIBCLANG_PATH for x64 build
+      - name: Verify and setup LLVM
         shell: bash
         run: |
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
-          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_OUTPUT
-          export LIBCLANG_PATH="C:\Program Files\LLVM\bin"
-          echo "=== LIBCLANG_PATH 验证 ==="
-          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
-          ls -la "$LIBCLANG_PATH" | grep clang || echo "clang.dll not found"
+          LLVM_DIR="C:/Program Files/LLVM"
+          LIBCLANG_PATH="C:/Program Files/LLVM/bin"
+          echo "=== LLVM 验证 ==="
+          echo "LLVM_DIR: $LLVM_DIR"
+          if [ -d "$LLVM_DIR" ]; then
+            echo "✅ LLVM 目录存在"
+            ls -la "$LLVM_DIR"
+            if [ -d "$LIBCLANG_PATH" ]; then
+              echo "✅ LLVM/bin 目录存在"
+              ls "$LIBCLANG_PATH" | grep -i clang || echo "警告: 未找到 clang 相关文件"
+            else
+              echo "❌ LLVM/bin 目录不存在"
+            fi
+          else
+            echo "❌ LLVM 目录不存在，尝试手动下载..."
+            # 备用方案：下载 LLVM
+            LLVM_URL="https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/llvm-${{ env.LLVM_VERSION }}-x64-mingw.tar.gz"
+            echo "从 $LLVM_URL 下载..."
+            curl -L "$LLVM_URL" -o llvm.tar.gz
+            tar -xzf llvm.tar.gz -C /c/Program\ Files/
+            mv /c/Program\ Files/llvm-* "$LLVM_DIR" 2>/dev/null || true
+          fi
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> $GITHUB_OUTPUT
+          echo "LIBCLANG_PATH 设置完成"
 
       - name: Install flutter
         uses: subosito/flutter-action@v2.12.0 #https://github.com/subosito/flutter-action/issues/277
