@@ -257,6 +257,10 @@ jobs:
         run: |
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_ENV
           echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $GITHUB_OUTPUT
+          export LIBCLANG_PATH="C:\Program Files\LLVM\bin"
+          echo "=== LIBCLANG_PATH 验证 ==="
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
+          ls -la "$LIBCLANG_PATH" | grep clang || echo "clang.dll not found"
 
       - name: Install flutter
         uses: subosito/flutter-action@v2.12.0 #https://github.com/subosito/flutter-action/issues/277
@@ -330,8 +334,11 @@ jobs:
         shell: bash
 
       - name: Build rustdesk
+        env:
+          LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
         run: |
           # Windows: build RustDesk
+          echo "LIBCLANG_PATH=$env:LIBCLANG_PATH"
           python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
 
