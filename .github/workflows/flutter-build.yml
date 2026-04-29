@@ -553,8 +553,8 @@ jobs:
         shell: cmd
         run: |
           echo === LLVM 验证 (32位) ===
-          set LIBCLANG_PATH=C:\Program Files (x86)\LLVM\bin
-          set LIBCLANG=%LIBCLANG_PATH%\libclang.dll
+          set "LIBCLANG_PATH=C:\Program Files (x86)\LLVM\bin"
+          set "LIBCLANG=%LIBCLANG_PATH%\libclang.dll"
           
           echo LIBCLANG_PATH=%LIBCLANG_PATH%
           
@@ -563,7 +563,7 @@ jobs:
           ) else (
             echo ❌ libclang.dll 不存在，尝试手动下载...
             curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win32.exe" -o llvm-installer.exe
-            llvm-installer.exe /S /D=C:\Program Files (x86)\LLVM
+            llvm-installer.exe /S /D="C:\Program Files (x86)\LLVM"
           )
           
           echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_ENV%
