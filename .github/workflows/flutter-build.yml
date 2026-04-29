@@ -721,6 +721,18 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            // 设置 Rust PATH 以便后续步骤可以使用 cargo
+            const cargoPath = process.env.HOME + '/.cargo/bin';
+            const currentPath = process.env.PATH || '';
+            if (!currentPath.includes(cargoPath)) {
+              core.exportVariable('PATH', cargoPath + ':' + currentPath);
+            }
+
+      - name: Ensure cargo is in PATH (bash)
+        shell: bash
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "PATH=$PATH" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
