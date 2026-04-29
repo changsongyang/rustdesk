@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
-      compliance-passed: ${{ steps.dependency-review.outputs.result == 'success' && steps.secrets-scan.outputs.result == 'success' }}
+      compliance-passed: ${{ (steps.dependency-review.outcome == 'success' || steps.dependency-review-non-pr.outcome == 'success') && steps.secrets-scan.outcome == 'success' }}
     
     steps:
       - name: Checkout repository
@@ -132,13 +132,29 @@ jobs:
       - name: Dependency Review
         id: dependency-review
         uses: actions/dependency-review-action@v4
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target' || github.event_name == 'merge_group'
+        with:
+          # 阻止已知漏洞的依赖
+          fail-on-severity: critical
+          # 允许的许可证类型（使用正确的参数名 allow-licenses）
+          allow-licenses: >
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
+            CC-BY-4.0, ISC, MPL-2.0, Unlicense, Zlib
+          
+      - name: Dependency Review (non-PR)
+        id: dependency-review-non-pr
+        uses: actions/dependency-review-action@v4
+        if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && github.event_name != 'merge_group'
         with:
           # 阻止已知漏洞的依赖
           fail-on-severity: critical
           # 允许的许可证类型
-          allowed-licenses: >
+          allow-licenses: >
             MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
             CC-BY-4.0, ISC, MPL-2.0, Unlicense, Zlib
+          # 非PR场景需要明确指定 base-ref 和 head-ref
+          base-ref: ${{ github.event.repository.default_branch }}
+          head-ref: ${{ github.sha }}
           
       - name: Secret Scanning
         id: secrets-scan
