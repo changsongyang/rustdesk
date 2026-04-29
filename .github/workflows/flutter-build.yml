@@ -701,7 +701,27 @@ jobs:
       - name: Build rustdesk
         id: build
         shell: bash
+        env:
+          VCPKG_ROOT: C:\vcpkg
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
+          VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
         run: |
+          # 设置 vcpkg 环境变量
+          export VCPKG_ROOT="C:/vcpkg"
+          export VCPKG_DEFAULT_TRIPLET="${{ matrix.job.vcpkg-triplet }}"
+          export VCPKG_DEFAULT_HOST_TRIPLET="${{ matrix.job.vcpkg-triplet }}"
+          
+          # 设置 CFLAGS 和 LDFLAGS 以包含 vcpkg 头文件和库路径
+          export CFLAGS="-I${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include"
+          export LDFLAGS="-L${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib"
+          
+          # 验证 vcpkg 安装
+          echo "=== 验证 vcpkg 安装 ==="
+          echo "VCPKG_ROOT: $VCPKG_ROOT"
+          echo "VCPKG_DEFAULT_TRIPLET: $VCPKG_DEFAULT_TRIPLET"
+          ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include/" 2>/dev/null || echo "include 目录不存在"
+          ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include/libavcodec/" 2>/dev/null || echo "libavcodec 目录不存在"
+          
           # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
           rustup default ${{ env.RUST_VERSION }}
           rustc --version
@@ -1004,10 +1024,31 @@ jobs:
       - name: Build rustdesk
         shell: bash
         run: |
+          # 验证 cargo 是否可用
+          echo "=== 验证构建环境 ==="
+          which cargo || echo "cargo not found"
+          if command -v cargo &> /dev/null; then
+            cargo --version
+          fi
+          
+          # 验证 flutter 是否可用
+          which flutter || echo "flutter not found"
+          if command -v flutter &> /dev/null; then
+            flutter --version
+          fi
+          
+          # 检查 vcpkg 安装
+          echo "VCPKG_ROOT: $VCPKG_ROOT"
+          ls -la "$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib/" 2>/dev/null || echo "lib 目录不存在"
+          
           pushd flutter
+          echo "=== Flutter 环境 ==="
+          flutter doctor -v
+          
           # flutter build ipa --release --obfuscate --split-debug-info=./split-debug-info --no-codesign
           # for easy debugging
-          flutter build ipa --release --no-codesign
+          echo "=== 开始构建 IPA ==="
+          flutter build ipa --release --no-codesign 2>&1 | tail -50
 
       - name: Verify iOS build products
         shell: bash
