@@ -150,12 +150,21 @@ jobs:
       LIBCLANG_PATH: ${{ matrix.job.llvm-path }}
       LIBCLANG: "${{ matrix.job.llvm-path }}\\libclang.dll"
     steps:
-      - name: Export GitHub Actions cache environment variables
+      - name: Export GitHub Actions cache environment variables and set LIBCLANG_PATH early
         uses: actions/github-script@v7
         with:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+            # 尽早设置 LIBCLANG_PATH，确保后续所有步骤都使用正确的64位LLVM
+            const llvmPath = 'C:\\Program Files\\LLVM\\bin';
+            core.exportVariable('LIBCLANG_PATH', llvmPath);
+            core.exportVariable('LIBCLANG', llvmPath + '\\libclang.dll');
+            # 将LLVM路径添加到PATH开头，确保优先使用64位版本
+            const currentPath = process.env.PATH || '';
+            if (!currentPath.startsWith(llvmPath)) {
+              core.exportVariable('PATH', llvmPath + ';' + currentPath);
+            }
 
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -267,12 +276,18 @@ jobs:
           set "LIBCLANG_PATH=C:\Program Files\LLVM\bin"
           set "LIBCLANG=%LIBCLANG_PATH%\libclang.dll"
           
-          echo LIBCLANG_PATH=%LIBCLANG_PATH%
+          echo 当前 LIBCLANG_PATH 环境变量: %LIBCLANG_PATH%
+          echo 当前 PATH 环境变量 (前1000字符): %PATH:~0,1000%
           
           if exist "%LIBCLANG%" (
-            echo ✅ 找到 libclang.dll
+            echo ✅ 找到 libclang.dll: %LIBCLANG%
+            dir "%LIBCLANG%"
           ) else (
-            echo ❌ libclang.dll 不存在，尝试手动下载...
+            echo ❌ libclang.dll 不存在于 %LIBCLANG%
+            echo 尝试查找系统中的所有 libclang.dll...
+            dir /s /b "C:\Program Files\LLVM\bin\libclang.dll" 2>NUL || echo 未找到64位版本
+            dir /s /b "C:\Program Files (x86)\LLVM\bin\libclang.dll" 2>NUL || echo 未找到32位版本
+            echo 尝试手动下载64位LLVM...
             curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe" -o llvm-installer.exe
             llvm-installer.exe /S /D="C:\Program Files\LLVM"
           )
@@ -283,8 +298,9 @@ jobs:
           )
           
           echo "LIBCLANG_PATH=%LIBCLANG_PATH%">>%GITHUB_ENV%
+          echo "LIBCLANG=%LIBCLANG%">>%GITHUB_ENV%
           echo "LIBCLANG_PATH=%LIBCLANG_PATH%">>%GITHUB_OUTPUT%
-          echo LIBCLANG_PATH 设置完成
+          echo ✅ LIBCLANG_PATH 设置完成: %LIBCLANG_PATH%
 
       - name: Install flutter
         uses: subosito/flutter-action@v2.12.0 #https://github.com/subosito/flutter-action/issues/277
@@ -361,19 +377,29 @@ jobs:
         env:
           LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
           LIBCLANG: "C:\\Program Files\\LLVM\\bin\\libclang.dll"
+          PATH: "C:\\Program Files\\LLVM\\bin;${{ env.PATH }}"
         run: |
           # Windows: build RustDesk
+          echo "=== 构建环境变量 ==="
           echo "LIBCLANG_PATH=$env:LIBCLANG_PATH"
           echo "LIBCLANG=$env:LIBCLANG"
+          echo "PATH (前2000字符): $($env:PATH.Substring(0, [Math]::Min(2000, $env:PATH.Length)))"
+          
           # 验证 LLVM 目录存在
-          if (Test-Path "C:\\Program Files\\LLVM\\bin\\libclang.dll") {
-            echo "✅ libclang.dll found"
+          $libclangPath = "C:\\Program Files\\LLVM\\bin\\libclang.dll"
+          if (Test-Path $libclangPath) {
+            $file = Get-Item $libclangPath
+            echo "✅ libclang.dll found: $($file.FullName)"
+            echo "文件大小: $($file.Length) bytes"
           } else {
-            echo "❌ libclang.dll not found, listing LLVM bin contents:"
+            echo "❌ libclang.dll not found at $libclangPath"
+            echo "列出 LLVM bin 目录内容:"
             Get-ChildItem "C:\\Program Files\\LLVM\\bin" -ErrorAction SilentlyContinue | Select-Object -First 10
-            # 尝试查找其他位置的 libclang.dll
-            Get-ChildItem -Path "C:\\" -Filter "libclang.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5
+            echo "查找系统中的 libclang.dll:"
+            Get-ChildItem -Path "C:\\" -Filter "libclang.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName, Length
           }
+          
+          echo "=== 开始构建 ==="
           python3 .\build.py --portable --hwcodec --flutter --vram --skip-portable-pack
           mv ./flutter/build/windows/x64/runner/Release ./rustdesk
 
