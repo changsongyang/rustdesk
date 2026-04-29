@@ -63,48 +63,69 @@ on:
       - "flatpak/**"                           # Flatpak 打包目录
 
 jobs:
-  # ensure_cargo_fmt:
-  #   name: Ensure 'cargo fmt' has been run
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #   - uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       default: true
-  #       profile: minimal
-  #       components: rustfmt
-  #   - uses: actions/checkout@v3
-  #   - run: cargo fmt -- --check
+  ###########################################################################
+  # 安全审计作业
+  # 使用 cargo-deny 检查依赖漏洞和许可证合规性
+  ###########################################################################
+  security-audit:
+    name: Security Audit (cargo-deny)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-  # min_version:
-  #   name: Minimum supported rust version
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #   - name: Checkout source code
-  #     uses: actions/checkout@v3
-  #     with:
-  #       submodules: recursive
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
-  #   - name: Install rust toolchain (v${{ env.MIN_SUPPORTED_RUST_VERSION }})
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: ${{ env.MIN_SUPPORTED_RUST_VERSION }}
-  #       default: true
-  #       profile: minimal # minimal component installation (ie, no documentation)
-  #       components: clippy
-  #   - name: Run clippy (on minimum supported rust version to prevent warnings we can't fix)
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: clippy
-  #       args: --locked --all-targets --all-features -- --allow clippy::unknown_clippy_lints
-  #   - name: Run tests
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --locked
+      - name: Run cargo-deny (advisories)
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check advisories
+          args: --log-level warn
 
+      - name: Run cargo-deny (bans)
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check bans
+          args: --log-level warn
+
+  ###########################################################################
+  # 质量门禁作业
+  # 运行格式化检查和 Linting
+  ###########################################################################
+  quality-gate:
+    name: Quality Gate (fmt + clippy)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: rustfmt, clippy
+
+      - name: Run rustfmt check
+        run: cargo fmt --check
+
+      - name: Run clippy check
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  ###########################################################################
+  # 构建作业矩阵
+  # 仅在安全审计和质量门禁通过后运行
+  ###########################################################################
   build:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
+    needs: [security-audit, quality-gate]
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
