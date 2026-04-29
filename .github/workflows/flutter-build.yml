@@ -2021,7 +2021,7 @@ jobs:
           githubToken: ${{ github.token }}
           setup: |
             ls -l "${PWD}"
-            ls -l /opt/artifacts/vcpkg/installed
+            ls -l /opt/artifacts/vcpkg/installed 2>/dev/null || echo "vcpkg installed directory not found"
           dockerRunArgs: |
             --volume "${PWD}:/workspace"
             --volume "/opt/artifacts:/opt/artifacts"
@@ -2029,6 +2029,8 @@ jobs:
             -e "LC_ALL=C.UTF-8"
             -e "PYTHONIOENCODING=utf-8"
             -e "PYTHONUTF8=1"
+            -e "VCPKG_ROOT=/opt/artifacts/vcpkg"
+            -e "VCPKG_DEFAULT_HOST_TRIPLET=${{ matrix.job.vcpkg-triplet }}"
           shell: /bin/bash
           install: |
             apt-get update -y
@@ -2068,9 +2070,24 @@ jobs:
                libssl-dev
             # we have libopus compiled by us.
             apt-get remove -y libopus-dev || true
+            
+            # For aarch64, install vcpkg dependencies inside the container
+            if [[ "${{ matrix.job.arch }}" == "aarch64" ]]; then
+              echo "=== Installing vcpkg dependencies for aarch64 ==="
+              export VCPKG_ROOT=/opt/artifacts/vcpkg
+              export VCPKG_DEFAULT_HOST_TRIPLET=${{ matrix.job.vcpkg-triplet }}
+              
+              if [ ! -d "$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}" ]; then
+                echo "Installing vcpkg dependencies..."
+                $VCPKG_ROOT/vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
+              else
+                echo "vcpkg dependencies already installed"
+              fi
+            fi
+            
             # output devs
             ls -l ./
-            tree -L 3 /opt/artifacts/vcpkg/installed
+            tree -L 3 /opt/artifacts/vcpkg/installed 2>/dev/null || ls -la /opt/artifacts/vcpkg/
           run: |
             # disable git safe.directory
             git config --global --add safe.directory "*"
