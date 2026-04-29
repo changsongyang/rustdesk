@@ -261,35 +261,44 @@ jobs:
           echo === LLVM 验证 ===
           set LLVM_DIR=C:\Program Files\LLVM
           set LIBCLANG_PATH=C:\Program Files\LLVM\bin
+          set LIBCLANG=
+          
           echo LLVM_DIR: %LLVM_DIR%
           if exist "%LLVM_DIR%" (
             echo ✅ LLVM 目录存在
-            dir "%LLVM_DIR%"
-            if exist "%LIBCLANG_PATH%" (
-              echo ✅ LLVM/bin 目录存在
-              dir "%LIBCLANG_PATH%" | findstr /i clang
-              if %errorlevel% equ 0 (
-                echo ✅ 找到 clang 文件
-              ) else (
-                echo ❌ 未找到 clang 相关文件
-              )
+            if exist "%LIBCLANG_PATH%\libclang.dll" (
+              echo ✅ 找到 libclang.dll
+              set LIBCLANG=%LIBCLANG_PATH%\libclang.dll
             ) else (
-              echo ❌ LLVM/bin 目录不存在
+              echo ❌ libclang.dll 不存在于默认位置
             )
           ) else (
             echo ❌ LLVM 目录不存在
           )
-          echo 搜索系统中的 libclang.dll...
-          for /f "delims=" %%i in ('dir /s /b "C:\libclang.dll" 2^>nul') do (
-            echo 找到: %%i
-            set LIBCLANG_PATH=%%~dpi
+          
+          if not defined LIBCLANG (
+            echo 搜索系统中的 libclang.dll...
+            for /f "delims=" %%i in ('dir /s /b "C:\libclang.dll" 2^>nul') do (
+              echo 找到: %%i
+              set LIBCLANG=%%i
+              set LIBCLANG_PATH=%%~dpi
+            )
           )
-          for /f "delims=" %%i in ('dir /s /b "C:\libclang.dll" 2^>nul') do (
-            echo LIBCLANG=%%i
+          
+          if not defined LIBCLANG (
+            echo 手动下载 LLVM...
+            curl -L "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ env.LLVM_VERSION }}/LLVM-${{ env.LLVM_VERSION }}-win64.exe" -o llvm-installer.exe
+            llvm-installer.exe /S /D=C:\Program Files\LLVM
+            set LIBCLANG_PATH=C:\Program Files\LLVM\bin
+            set LIBCLANG=C:\Program Files\LLVM\bin\libclang.dll
           )
+          
           echo LIBCLANG_PATH=%LIBCLANG_PATH%
+          echo LIBCLANG=%LIBCLANG%
           echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_ENV%
+          echo LIBCLANG=%LIBCLANG%>>%GITHUB_ENV%
           echo LIBCLANG_PATH=%LIBCLANG_PATH%>>%GITHUB_OUTPUT%
+          echo LIBCLANG=%LIBCLANG%>>%GITHUB_OUTPUT%
           echo LIBCLANG_PATH 设置完成
 
       - name: Install flutter
