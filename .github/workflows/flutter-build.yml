@@ -459,6 +459,26 @@ jobs:
             echo "❌ vcpkg directory not found"
             exit 1
           fi
+          
+          # 验证 opus 安装
+          echo ""
+          echo "=== Opus 安装验证 ==="
+          OPUS_INCLUDE_DIR="$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/include/opus"
+          echo "Opus include directory: $OPUS_INCLUDE_DIR"
+          if [ -d "$OPUS_INCLUDE_DIR" ]; then
+            echo "✅ Opus include directory exists"
+            echo "Opus header files:"
+            ls -la "$OPUS_INCLUDE_DIR"
+            if [ -f "$OPUS_INCLUDE_DIR/opus_multistream.h" ]; then
+              echo "✅ opus_multistream.h found"
+            else
+              echo "❌ opus_multistream.h NOT found"
+              exit 1
+            fi
+          else
+            echo "❌ Opus include directory NOT found"
+            exit 1
+          fi
         shell: bash
 
       - name: Build rustdesk
@@ -1021,6 +1041,17 @@ jobs:
           unset MACOSX_DEPLOYMENT_TARGET
           unset CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER
           unset CARGO_TARGET_AARCH64_APPLE_DARWIN_RUSTFLAGS
+          # 清除可能存在的其他macOS相关环境变量
+          unset CFLAGS_x86_64_apple_darwin
+          unset CFLAGS_aarch64_apple_darwin
+          unset CXXFLAGS_x86_64_apple_darwin
+          unset CXXFLAGS_aarch64_apple_darwin
+          # 清除可能从Xcode或Flutter继承的macOS部署目标
+          unset SDKROOT
+          unset CFLAGS
+          unset CXXFLAGS
+          unset LDFLAGS
+          unset ASFLAGS
           
           # 设置 iOS 构建环境变量
           export IPHONEOS_DEPLOYMENT_TARGET="12.0"
@@ -1044,6 +1075,9 @@ jobs:
           export CC_aarch64_apple_ios=$(xcrun --sdk iphoneos --find clang)
           export CXX_aarch64_apple_ios=$(xcrun --sdk iphoneos --find clang++)
           export AR_aarch64_apple_ios=$(xcrun --sdk iphoneos --find ar)
+          # 设置特定架构的CFLAGS，确保ring crate使用正确的iOS部署目标
+          export CFLAGS_aarch64_apple_ios="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          export CXXFLAGS_aarch64_apple_ios="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
           
           # 打印调试信息
           echo "=== iOS 构建环境 ==="
@@ -1059,6 +1093,11 @@ jobs:
           echo "CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS: $CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS"
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-arch -C link-arg=arm64 -C link-arg=-isysroot -C link-arg=$SDKROOT -C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -C link-arg=-framework -C link-arg=Foundation -C link-arg=-framework -C link-arg=UIKit -C link-arg=-framework -C link-arg=CoreGraphics -C link-arg=-framework -C link-arg=CoreMedia -C link-arg=-framework -C link-arg=AVFoundation"
           
+          # 额外的ring crate配置，确保不使用macOS部署目标
+          export CARGO_TARGET_AARCH64_APPLE_IOS_AR=$(xcrun --sdk iphoneos --find ar)
+          export CARGO_TARGET_AARCH64_APPLE_IOS_CC=$(xcrun --sdk iphoneos --find clang)
+          export CARGO_TARGET_AARCH64_APPLE_IOS_CXX=$(xcrun --sdk iphoneos --find clang++)
+          
           rustup target add ${{ matrix.job.target }}
           
           # Retry mechanism for cargo build
@@ -1072,7 +1111,28 @@ jobs:
             echo "CC: $CC"
             echo "CFLAGS: $CFLAGS"
             echo "LDFLAGS: $LDFLAGS"
-            if cargo build --features flutter,hwcodec --release --target ${{ matrix.job.target }} --lib; then
+            # 使用env命令确保所有环境变量正确传递给cargo
+             env \
+               IPHONEOS_DEPLOYMENT_TARGET="$IPHONEOS_DEPLOYMENT_TARGET" \
+               SDKROOT="$SDKROOT" \
+               CFLAGS="$CFLAGS" \
+               CXXFLAGS="$CXXFLAGS" \
+               LDFLAGS="$LDFLAGS" \
+               ASFLAGS="$ASFLAGS" \
+               RING_ASM_FLAGS="$RING_ASM_FLAGS" \
+               CC="$CC" \
+               CXX="$CXX" \
+               LD="$LD" \
+               AR="$AR" \
+               AS="$AS" \
+               CFLAGS_aarch64_apple_ios="$CFLAGS_aarch64_apple_ios" \
+               CXXFLAGS_aarch64_apple_ios="$CXXFLAGS_aarch64_apple_ios" \
+               CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$CARGO_TARGET_AARCH64_APPLE_IOS_LINKER" \
+               CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="$CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS" \
+               CARGO_TARGET_AARCH64_APPLE_IOS_AR="$CARGO_TARGET_AARCH64_APPLE_IOS_AR" \
+               CARGO_TARGET_AARCH64_APPLE_IOS_CC="$CARGO_TARGET_AARCH64_APPLE_IOS_CC" \
+               CARGO_TARGET_AARCH64_APPLE_IOS_CXX="$CARGO_TARGET_AARCH64_APPLE_IOS_CXX" \
+               cargo build --features flutter,hwcodec --release --target ${{ matrix.job.target }} --lib
               echo "✅ 构建成功"
               exit 0
             fi
@@ -1400,6 +1460,14 @@ jobs:
           source "$HOME/.cargo/env" || true
           # 再次确认使用正确的 Rust 工具链版本
           rustup default ${{ env.RUST_VERSION }}
+          
+          # 设置 FFmpeg 路径，让 hwcodec 能够找到头文件
+          export VCPKG_INCLUDE_DIR="${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include"
+          export VCPKG_LIB_DIR="${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib"
+          export CFLAGS="-I${VCPKG_INCLUDE_DIR} ${CFLAGS:-}"
+          export CXXFLAGS="-I${VCPKG_INCLUDE_DIR} ${CXXFLAGS:-}"
+          export LDFLAGS="-L${VCPKG_LIB_DIR} ${LDFLAGS:-}"
+          
           if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
             MIN_MACOS_VERSION="12.3"
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py
@@ -1407,7 +1475,11 @@ jobs:
             sed -i -e "s/osx_minimum_system_version = \"[0-9]*.[0-9]*\"/osx_minimum_system_version = \"${MIN_MACOS_VERSION}\"/" Cargo.toml
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj
           fi
-          ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+          
+          # 使用 env 命令设置包含连字符的环境变量，hwcodec 构建脚本会检查这些变量
+          env CFLAGS_${{ matrix.job.target }}="-I${VCPKG_INCLUDE_DIR}" \
+              CXXFLAGS_${{ matrix.job.target }}="-I${VCPKG_INCLUDE_DIR}" \
+              ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'

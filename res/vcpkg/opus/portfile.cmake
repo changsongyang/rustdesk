@@ -12,6 +12,7 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         avx2 AVX2_SUPPORTED
 )
 
+set(STACK_PROTECTOR ON)
 set(ADDITIONAL_OPUS_OPTIONS "")
 if(VCPKG_TARGET_IS_MINGW)
     set(STACK_PROTECTOR OFF)
@@ -21,16 +22,12 @@ if(VCPKG_TARGET_IS_MINGW)
         list(APPEND ADDITIONAL_OPUS_OPTIONS "-DOPUS_USE_NEON=OFF") # for version 1.3.1 (remove for future Opus release)
         list(APPEND ADDITIONAL_OPUS_OPTIONS "-DOPUS_DISABLE_INTRINSICS=ON") # for HEAD (and future Opus release)
     endif()
+elseif(VCPKG_TARGET_IS_WINDOWS)
+    if(VCPKG_CRT_LINKAGE STREQUAL "static")
+        list(APPEND ADDITIONAL_OPUS_OPTIONS "-DOPUS_STATIC_RUNTIME=ON")
+    endif()
 elseif(VCPKG_TARGET_IS_EMSCRIPTEN)
     set(STACK_PROTECTOR OFF)
-else()
-    set(STACK_PROTECTOR ON)
-endif()
-
-if((VCPKG_TARGET_IS_LINUX AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm") OR
-   (VCPKG_TARGET_IS_ANDROID AND VCPKG_TARGET_ARCHITECTURE STREQUAL "arm" AND VCPKG_CMAKE_CONFIGURE_OPTIONS MATCHES "ANDROID_ARM_NEON"))
-    message(STATUS "Disabling ARM NEON and intrinsics on ${TARGET_TRIPLET}")
-    list(APPEND ADDITIONAL_OPUS_OPTIONS "-DOPUS_DISABLE_INTRINSICS=ON -DCOMPILER_SUPPORTS_NEON=OFF") # for HEAD (and future Opus release)
 endif()
 
 vcpkg_cmake_configure(
@@ -42,7 +39,6 @@ vcpkg_cmake_configure(
         -DOPUS_INSTALL_CMAKE_CONFIG_MODULE=ON
         -DOPUS_BUILD_PROGRAMS=OFF
         -DOPUS_BUILD_TESTING=OFF
-        -DOPUS_BUILD_SHARED_LIBS=OFF
         ${ADDITIONAL_OPUS_OPTIONS}
     MAYBE_UNUSED_VARIABLES
         OPUS_USE_NEON
@@ -54,9 +50,15 @@ vcpkg_copy_pdbs()
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/Opus)
 vcpkg_fixup_pkgconfig(SYSTEM_LIBRARIES m)
 
-
 file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/debug/lib/cmake"
                     "${CURRENT_PACKAGES_DIR}/lib/cmake"
                     "${CURRENT_PACKAGES_DIR}/debug/include")
 
 vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/COPYING")
+
+message(STATUS "=== Opus installation verification ===")
+message(STATUS "Opus include files: ${CURRENT_PACKAGES_DIR}/include/opus/")
+file(GLOB OPUS_HEADERS "${CURRENT_PACKAGES_DIR}/include/opus/*.h")
+foreach(HEADER ${OPUS_HEADERS})
+    message(STATUS "Found header: ${HEADER}")
+endforeach()
