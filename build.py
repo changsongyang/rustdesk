@@ -181,6 +181,11 @@ def make_parser():
         "--package",
         type=str
     )
+    parser.add_argument(
+        '--skip-deps-check',
+        action='store_true',
+        help='Skip dependencies check, useful for CI environments'
+    )
     if osx:
         parser.add_argument(
             '--screencapturekit',
@@ -526,7 +531,8 @@ def main():
     args = parser.parse_args()
 
     flutter = args.flutter
-    check_dependencies(flutter)
+    if not args.skip_deps_check:
+        check_dependencies(flutter)
 
     if os.path.exists(exe_path):
         os.unlink(exe_path)
