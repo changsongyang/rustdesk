@@ -722,6 +722,12 @@ jobs:
             exit 1
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
+          echo ""
+          echo "=== 列出 vcpkg 安装的库文件 ==="
+          ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib/" 2>/dev/null || echo "lib 目录不存在"
+          echo ""
+          echo "=== 查找 avcodec 相关库文件 ==="
+          find "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}" -name "*avcodec*" 2>/dev/null || echo "未找到 avcodec 相关文件"
         shell: bash
 
       - name: Build rustdesk
@@ -731,6 +737,8 @@ jobs:
           VCPKG_ROOT: C:\vcpkg
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
           VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
+          # 设置 RUSTFLAGS 以正确链接 vcpkg 库
+          RUSTFLAGS: "-L native=C:/vcpkg/installed/${{ matrix.job.vcpkg-triplet }}/lib"
         run: |
           # 设置 vcpkg 环境变量
           export VCPKG_ROOT="C:/vcpkg"
@@ -741,12 +749,30 @@ jobs:
           export CFLAGS="-I${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include"
           export LDFLAGS="-L${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib"
           
+          # 设置 RUSTFLAGS 以正确链接 vcpkg 库
+          export RUSTFLAGS="-L native=${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib"
+          
           # 验证 vcpkg 安装
           echo "=== 验证 vcpkg 安装 ==="
           echo "VCPKG_ROOT: $VCPKG_ROOT"
           echo "VCPKG_DEFAULT_TRIPLET: $VCPKG_DEFAULT_TRIPLET"
+          echo "RUSTFLAGS: $RUSTFLAGS"
+          
+          # 检查 include 目录
+          echo ""
+          echo "=== 检查 include 目录 ==="
           ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include/" 2>/dev/null || echo "include 目录不存在"
+          
+          # 检查 libavcodec 头文件
+          echo ""
+          echo "=== 检查 libavcodec ==="
           ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/include/libavcodec/" 2>/dev/null || echo "libavcodec 目录不存在"
+          
+          # 检查库文件
+          echo ""
+          echo "=== 检查库文件 ==="
+          ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib/" 2>/dev/null || echo "lib 目录不存在"
+          ls -la "${VCPKG_ROOT}/installed/${{ matrix.job.vcpkg-triplet }}/lib/" | grep -i avcodec || echo "avcodec 库文件不存在"
           
           # 确保使用正确的 Rust 工具链版本（修复 Cargo.lock 版本 4 兼容性问题）
           rustup default ${{ env.RUST_VERSION }}
@@ -756,7 +782,11 @@ jobs:
           python3 res/inline-sciter.py
           # Patch sciter x86
           sed -i 's/branch = "dyn"/branch = "dyn_x86"/g' ./Cargo.toml
-          cargo build --features inline,vram,hwcodec --release --bins
+          
+          # 使用 verbose 模式构建以查看链接器命令
+          echo ""
+          echo "=== 开始构建 ==="
+          cargo build --features inline,vram,hwcodec --release --bins --verbose 2>&1 | tail -100
           mkdir -p ./Release
           mv ./target/release/rustdesk.exe ./Release/rustdesk.exe
           curl -LJ -o ./Release/sciter.dll https://github.com/c-smile/sciter-sdk/raw/master/bin.win/x32/sciter.dll
