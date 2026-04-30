@@ -26,13 +26,11 @@
     },
     {
       "name": "opus",
-      "host": true,
-      "features": ["multistream"]
+      "host": true
     },
     {
       "name": "opus",
-      "host": false,
-      "features": ["multistream"]
+      "host": false
     },
     {
       "name": "libvpx",
