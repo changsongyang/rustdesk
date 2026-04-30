@@ -58,6 +58,30 @@ def system2(cmd):
         sys.exit(e.returncode)
 
 
+def check_dependencies(flutter=False):
+    """检查构建依赖是否安装"""
+    required_tools = ['cargo', 'rustc']
+    
+    if flutter:
+        required_tools.append('flutter')
+    
+    if os.path.isfile('/usr/bin/yum') or os.path.isfile('/usr/bin/zypper'):
+        required_tools.append('rpmbuild')
+    
+    if os.path.isfile('/usr/bin/pacman'):
+        required_tools.append('makepkg')
+    
+    missing_tools = []
+    for tool in required_tools:
+        if not shutil.which(tool):
+            missing_tools.append(tool)
+    
+    if missing_tools:
+        print(f"Error: Missing required tools: {', '.join(missing_tools)}")
+        print("Please install these tools before running the build script.")
+        sys.exit(1)
+
+
 def get_version():
     with open("Cargo.toml", encoding="utf-8") as fh:
         for line in fh:
@@ -444,6 +468,27 @@ def build_flutter_arch_manjaro(version, features):
     system2('HBB=`pwd`/.. FLUTTER=1 makepkg -f')
 
 
+def build_flutter_rpm(version, features, suse=False):
+    """构建 Flutter UI 的 RPM 包"""
+    if not skip_cargo:
+        system2(f'cargo build --features {features} --lib --release')
+    ffi_bindgen_function_refactor()
+    os.chdir('flutter')
+    system2('flutter build linux --release')
+    system2(f'strip {flutter_build_dir}/lib/librustdesk.so')
+    os.chdir('..')
+    
+    spec_file = 'res/rpm-flutter-suse.spec' if suse else 'res/rpm-flutter.spec'
+    system2("sed -i 's/Version:    .*/Version:    %s/g' %s" % (version, spec_file))
+    
+    arch = os.environ.get('RUSTDESK_ARCH', 'x86_64')
+    system2('HBB=`pwd` rpmbuild ./%s -bb --target %s' % (spec_file, arch))
+    
+    suse_suffix = '-suse' if suse else ''
+    rpm_pattern = 'rustdesk-%s-0.%s.rpm' % (version, arch)
+    system2('mv ~/rpmbuild/RPMS/%s/%s ./rustdesk-%s%s.rpm' % (arch, rpm_pattern, version, suse_suffix))
+
+
 def build_flutter_windows(version, features, skip_portable_pack):
     if not skip_cargo:
         system2(f'cargo build --features {features} --lib --release')
@@ -480,13 +525,15 @@ def main():
     parser = make_parser()
     args = parser.parse_args()
 
+    flutter = args.flutter
+    check_dependencies(flutter)
+
     if os.path.exists(exe_path):
         os.unlink(exe_path)
     if os.path.isfile('/usr/bin/pacman'):
         system2('git checkout src/ui/common.tis')
     version = get_version()
     features = ','.join(get_features(args))
-    flutter = args.flutter
     if not flutter:
         system2('python3 res/inline-sciter.py')
     print(args.skip_cargo)
@@ -541,24 +588,30 @@ def main():
             version, version))
         # pacman -U ./rustdesk.pkg.tar.zst
     elif os.path.isfile('/usr/bin/yum'):
-        system2('cargo build --release --features ' + features)
-        system2('strip target/release/rustdesk')
-        system2(
-            "sed -i 's/Version:    .*/Version:    %s/g' res/rpm.spec" % version)
-        system2('HBB=`pwd` rpmbuild -ba res/rpm.spec')
-        system2(
-            'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-fedora28-centos8.rpm' % (
-                version, version))
+        if flutter:
+            build_flutter_rpm(version, features, suse=False)
+        else:
+            system2('cargo build --release --features ' + features)
+            system2('strip target/release/rustdesk')
+            system2(
+                "sed -i 's/Version:    .*/Version:    %s/g' res/rpm.spec" % version)
+            system2('HBB=`pwd` rpmbuild -ba res/rpm.spec')
+            system2(
+                'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-fedora28-centos8.rpm' % (
+                    version, version))
         # yum localinstall rustdesk.rpm
     elif os.path.isfile('/usr/bin/zypper'):
-        system2('cargo build --release --features ' + features)
-        system2('strip target/release/rustdesk')
-        system2(
-            "sed -i 's/Version:    .*/Version:    %s/g' res/rpm-suse.spec" % version)
-        system2('HBB=`pwd` rpmbuild -ba res/rpm-suse.spec')
-        system2(
-            'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-suse.rpm' % (
-                version, version))
+        if flutter:
+            build_flutter_rpm(version, features, suse=True)
+        else:
+            system2('cargo build --release --features ' + features)
+            system2('strip target/release/rustdesk')
+            system2(
+                "sed -i 's/Version:    .*/Version:    %s/g' res/rpm-suse.spec" % version)
+            system2('HBB=`pwd` rpmbuild -ba res/rpm-suse.spec')
+            system2(
+                'mv $HOME/rpmbuild/RPMS/x86_64/rustdesk-%s-0.x86_64.rpm ./rustdesk-%s-suse.rpm' % (
+                    version, version))
         # yum localinstall rustdesk.rpm
     else:
         if flutter:
