@@ -80,7 +80,7 @@
     {
       "name": "ffmpeg",
       "host": false,
-      "platform": "((android | ios | linux | windows) & static)"
+      "platform": "((android | ios | linux | macos | windows) & static)"
     }
   ],
   "vcpkg-configuration": {
