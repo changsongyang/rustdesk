@@ -263,8 +263,12 @@ jobs:
           target/
         save-if: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev' }}
 
+    - name: Generate Cargo.lock file
+      run: cargo +${{ env.RUST_VERSION }} generate-lockfile
+      shell: bash
+
     - name: Build with parallel jobs
-      run: cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }} -j $(nproc)
+      run: cargo +${{ env.RUST_VERSION }} build --target=${{ matrix.job.target }} -j $(nproc)
       shell: bash
       env:
         CARGO_INCREMENTAL: "true"
@@ -342,5 +346,5 @@ jobs:
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 
     - name: Run tests
-      run: cargo +${{ env.RUST_VERSION }} test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+      run: cargo +${{ env.RUST_VERSION }} test --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
       shell: bash
