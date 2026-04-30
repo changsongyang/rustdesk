@@ -431,7 +431,13 @@ jobs:
       - name: Install vcpkg dependencies
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
+        working-directory: ${{ github.workspace }}
         run: |
+          echo "=== 当前工作目录 ==="
+          pwd
+          echo "=== 项目目录内容 ==="
+          ls -la
+          
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --triplet ${{ matrix.job.vcpkg-triplet }} \
@@ -743,7 +749,11 @@ jobs:
       - name: Install vcpkg dependencies
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
+        working-directory: ${{ github.workspace }}
         run: |
+          echo "=== 当前工作目录 ==="
+          pwd
+          
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --triplet ${{ matrix.job.vcpkg-triplet }} \
@@ -953,7 +963,11 @@ jobs:
           doNotCache: false
 
       - name: Install vcpkg dependencies
+        working-directory: ${{ github.workspace }}
         run: |
+          echo "=== 当前工作目录 ==="
+          pwd
+          
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --triplet ${{ matrix.job.vcpkg-triplet }} \
@@ -1389,7 +1403,11 @@ jobs:
           doNotCache: false
 
       - name: Install vcpkg dependencies
+        working-directory: ${{ github.workspace }}
         run: |
+          echo "=== 当前工作目录 ==="
+          pwd
+          
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --x-install-root="$VCPKG_ROOT/installed"; then
@@ -2255,8 +2273,12 @@ jobs:
 
       - name: Install vcpkg dependencies
         if: matrix.job.arch == 'x86_64' || env.UPLOAD_ARTIFACT == 'true'
+        working-directory: ${{ github.workspace }}
         run: |
           sudo apt install -y libva-dev && apt show libva-dev
+          echo "=== 当前工作目录 ==="
+          pwd
+          
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --triplet ${{ matrix.job.vcpkg-triplet }} \
