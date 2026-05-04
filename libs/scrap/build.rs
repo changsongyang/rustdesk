@@ -146,13 +146,22 @@ fn generate_bindings(
 ) {
     let mut b = bindgen::builder()
         .header(ffi_header.to_str().unwrap())
-        .allowlist_type(regex)
-        .allowlist_var(regex)
-        .allowlist_function(regex)
+        .allowlist_type(".*")
+        .allowlist_var(".*")
+        .allowlist_function(".*")
         .rustified_enum(regex)
         .trust_clang_mangling(false)
         .layout_tests(false) // breaks 32/64-bit compat
-        .generate_comments(false); // comments have prefix /*!\
+        .generate_comments(false) // comments have prefix /*!\
+        .clang_arg("-DVpxGeneric")
+        .clang_arg("-DAOM_MAX_ALIGNED_WIDTH=16384")
+        .clang_arg("-DAOM_MAX_ALIGNED_HEIGHT=16384")
+        .clang_arg("-DAOM_CODEC_DISABLE_COMPAT=1")
+        .clang_arg("-DVPX_CODEC_DISABLE_COMPAT=1")
+        .clang_arg("-DVPX_MAX_ALIGNED_WIDTH=16384")
+        .clang_arg("-DVPX_MAX_ALIGNED_HEIGHT=16384")
+        .clang_arg("-D__STDC_LIMIT_MACROS")
+        .clang_arg("-D__STDC_CONSTANT_MACROS");
 
     for dir in include_paths {
         b = b.clang_arg(format!("-I{}", dir.display()));

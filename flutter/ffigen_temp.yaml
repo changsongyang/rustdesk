@@ -1,0 +1,5 @@
+name: NativeBindings
+description: Generated bindings for native code
+output: lib/native_bindings.dart
+llvm-path:
+  - C:\Android\LLVM
