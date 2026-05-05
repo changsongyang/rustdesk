@@ -176,11 +176,9 @@ jobs:
     - uses: Swatinem/rust-cache@v2
 
     - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: ${{ matrix.job.use-cross }}
-        command: build
-        args: --locked --target=${{ matrix.job.target }}
+      shell: bash
+      run: |
+        cargo build --locked --target=${{ matrix.job.target }}
 
     - name: clean
       shell: bash
@@ -244,8 +242,6 @@ jobs:
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 
     - name: Run tests
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: ${{ matrix.job.use-cross }}
-        command: test
-        args: --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+      shell: bash
+      run: |
+        cargo test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
