@@ -164,6 +164,11 @@ jobs:
         components: ''
         override: true
 
+    - name: Set default Rust toolchain
+      shell: bash
+      run: |
+        rustup default ${{ env.RUST_VERSION }}-${{ matrix.job.target }} || rustup default ${{ env.RUST_VERSION }}
+
     - name: Show version information (Rust, cargo, GCC)
       shell: bash
       run: |
