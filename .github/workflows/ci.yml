@@ -184,7 +184,7 @@ jobs:
     - name: Build
       shell: bash
       run: |
-        cargo build --locked --target=${{ matrix.job.target }}
+        cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }}
 
     - name: clean
       shell: bash
@@ -250,4 +250,4 @@ jobs:
     - name: Run tests
       shell: bash
       run: |
-        cargo test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+        cargo +${{ env.RUST_VERSION }} test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
