@@ -162,6 +162,7 @@ jobs:
         toolchain: ${{ env.RUST_VERSION }}
         targets: ${{ matrix.job.target }}
         components: ''
+        override: true
 
     - name: Show version information (Rust, cargo, GCC)
       shell: bash
