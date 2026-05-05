@@ -185,6 +185,11 @@ jobs:
       run: |
         cargo +${{ env.RUST_VERSION }} build --locked --target=${{ matrix.job.target }}
 
+    - name: Run Clippy
+      shell: bash
+      run: |
+        cargo +${{ env.RUST_VERSION }} clippy --locked --target=${{ matrix.job.target }} -- -D warnings
+
     - name: clean
       shell: bash
       run: |
