@@ -4,8 +4,7 @@ env:
 #   MIN_SUPPORTED_RUST_VERSION: "1.46.0"
 #   CICD_INTERMEDIATES_DIR: "_cicd-intermediates"
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-  RUST_VERSION: "1.80" # Updated to support webrtc-util 0.12.0 which uses usize::is_multiple_of (requires Rust 1.80+)
-  # for multiarch gcc compatibility
+  RUST_VERSION: "1.88" # Updated to latest stable version with better performance
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
 
 on:
@@ -18,7 +17,7 @@ on:
     branches:
       - master
     paths-ignore:
-      - ".github/**"
+      # - ".github/**"
       - "docs/**"
       - "README.md"
       - "res/**"
@@ -26,18 +25,36 @@ on:
       - "flatpak/**"
 
 jobs:
-  # ensure_cargo_fmt:
-  #   name: Ensure 'cargo fmt' has been run
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #   - uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       default: true
-  #       profile: minimal
-  #       components: rustfmt
-  #   - uses: actions/checkout@v3
-  #   - run: cargo fmt -- --check
+  ensure_cargo_fmt:
+    name: Ensure 'cargo fmt' has been run
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Install rust toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        components: rustfmt
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+  security_audit:
+    name: Security audit
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Install rust toolchain
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --locked
+    - name: Run security audit
+      run: cargo audit
 
   # min_version:
   #   name: Minimum supported rust version
@@ -161,12 +178,6 @@ jobs:
       with:
         toolchain: ${{ env.RUST_VERSION }}
         targets: ${{ matrix.job.target }}
-        components: ''
-
-    - name: Set default Rust toolchain
-      shell: bash
-      run: |
-        rustup default ${{ env.RUST_VERSION }}-${{ matrix.job.target }} || rustup default ${{ env.RUST_VERSION }}
 
     - name: Show version information (Rust, cargo, GCC)
       shell: bash
@@ -190,52 +201,10 @@ jobs:
       run: |
         cargo +${{ env.RUST_VERSION }} clippy --locked --target=${{ matrix.job.target }} -- -D warnings
 
-    - name: clean
-      shell: bash
-      run: |
-        cargo clean
-
-    # - name: Strip debug information from executable
-    #   id: strip
-    #   shell: bash
-    #   run: |
-    #     # Figure out suffix of binary
-    #     EXE_suffix=""
-    #     case ${{ matrix.job.target }} in
-    #       *-pc-windows-*) EXE_suffix=".exe" ;;
-    #     esac;
-
-    #     # Figure out what strip tool to use if any
-    #     STRIP="strip"
-    #     case ${{ matrix.job.target }} in
-    #       arm-unknown-linux-*) STRIP="arm-linux-gnueabihf-strip" ;;
-    #       aarch64-unknown-linux-gnu) STRIP="aarch64-linux-gnu-strip" ;;
-    #       *-pc-windows-msvc) STRIP="" ;;
-    #     esac;
-
-    #     # Setup paths
-    #     BIN_DIR="${{ env.CICD_INTERMEDIATES_DIR }}/stripped-release-bin/"
-    #     mkdir -p "${BIN_DIR}"
-    #     BIN_NAME="${{ env.PROJECT_NAME }}${EXE_suffix}"
-    #     BIN_PATH="${BIN_DIR}/${BIN_NAME}"
-
-    #     # Copy the release build binary to the result location
-    #     cp "target/${{ matrix.job.target }}/release/${BIN_NAME}" "${BIN_DIR}"
-
-    #     # Also strip if possible
-    #     if [ -n "${STRIP}" ]; then
-    #       "${STRIP}" "${BIN_PATH}"
-    #     fi
-
-    #     # Let subsequent steps know where to find the (stripped) bin
-    #     echo ::set-output name=BIN_PATH::${BIN_PATH}
-    #     echo ::set-output name=BIN_NAME::${BIN_NAME}
-
     - name: Set testing options
       id: test-options
       shell: bash
       run: |
-        # test only library unit tests and binary for arm-type targets
         unset CARGO_TEST_OPTIONS
 
         case ${{ matrix.job.target }} in
@@ -247,7 +216,6 @@ jobs:
             ;;
         esac;
 
-        #deprecated echo ::set-output name=CARGO_TEST_OPTIONS::${CARGO_TEST_OPTIONS}
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_ENV
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 

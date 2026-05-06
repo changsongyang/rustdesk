@@ -10,6 +10,7 @@ use hbb_common::{
     anyhow::anyhow,
     bail,
     config::{self, Config},
+    futures::StreamExt,
     libc::{c_int, wchar_t},
     log,
     message_proto::{DisplayInfo, Resolution, WindowsSession},

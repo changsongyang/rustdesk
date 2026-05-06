@@ -14,6 +14,7 @@ use hbb_common::{
     allow_err, bail,
     config::{keys::OPTION_FILE_TRANSFER_MAX_FILES, Config},
     fs::{self, get_string, is_write_need_confirmation, new_send_confirm, DigestCheckResult},
+    futures::StreamExt,
     log,
     message_proto::*,
     protobuf::Message as _,

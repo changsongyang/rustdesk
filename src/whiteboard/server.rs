@@ -5,7 +5,9 @@ use hbb_common::tokio::sync::mpsc::unbounded_channel;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use hbb_common::ResultType;
 use hbb_common::{
-    allow_err, log,
+    allow_err,
+    futures::StreamExt,
+    log,
     tokio::{self, sync::mpsc::UnboundedReceiver},
 };
 use lazy_static::lazy_static;

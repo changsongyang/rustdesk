@@ -4,9 +4,9 @@ use crate::{
     ui_interface::{get_local_option, set_local_option},
 };
 use bytes::Bytes;
-use parity_tokio_ipc::{
-    Connection as Conn, ConnectionClient as ConnClient, Endpoint, Incoming, SecurityAttributes,
-};
+use parity_tokio_ipc::{Connection as Conn, Endpoint, SecurityAttributes};
+
+pub type ConnClient = Conn;
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -38,6 +38,10 @@ use hbb_common::{
     tokio_util::codec::Framed,
     ResultType,
 };
+
+/// Trait combining AsyncRead and AsyncWrite for use in trait objects
+pub trait AsyncReadWrite: AsyncRead + AsyncWrite + Send + std::marker::Unpin {}
+impl<T: AsyncRead + AsyncWrite + Send + std::marker::Unpin> AsyncReadWrite for T {}
 
 use crate::{common::is_server, privacy_mode, rendezvous_mediator::RendezvousMediator};
 
@@ -426,7 +430,18 @@ pub async fn start(postfix: &str) -> ResultType<()> {
     }
 }
 
-pub async fn new_listener(postfix: &str) -> ResultType<Incoming> {
+pub async fn new_listener(
+    postfix: &str,
+) -> ResultType<
+    std::pin::Pin<
+        Box<
+            dyn hbb_common::futures::Stream<
+                    Item = std::io::Result<Box<dyn AsyncReadWrite + Send + 'static>>,
+                > + Send
+                + 'static,
+        >,
+    >,
+> {
     let path = Config::ipc_path(postfix);
     #[cfg(not(any(windows, target_os = "android", target_os = "ios")))]
     check_pid(postfix).await;
@@ -444,7 +459,9 @@ pub async fn new_listener(postfix: &str) -> ResultType<Incoming> {
                 std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o0777)).ok();
                 write_pid(postfix);
             }
-            Ok(incoming)
+            Ok(Box::pin(incoming.map(|result| {
+                result.map(|stream| Box::new(stream) as Box<dyn AsyncReadWrite + Send + 'static>)
+            })))
         }
         Err(err) => {
             log::error!(
@@ -1068,7 +1085,7 @@ pub struct ConnectionTmpl<T> {
     inner: Framed<T, BytesCodec>,
 }
 
-pub type Connection = ConnectionTmpl<Conn>;
+pub type Connection = ConnectionTmpl<Box<dyn AsyncReadWrite + Send + 'static>>;
 
 impl<T> ConnectionTmpl<T>
 where

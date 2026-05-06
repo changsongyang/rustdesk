@@ -1,16 +1,28 @@
+# Windows x86_64 MSVC target configuration
+# Enables static CRT linking to reduce runtime dependencies
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-Ctarget-feature=+crt-static"]
+
+# Windows i686 MSVC target configuration
+# Enables static CRT linking and excludes MSVCRT
 [target.i686-pc-windows-msvc]
 rustflags = ["-C", "target-feature=+crt-static", "-C", "link-args=/NODEFAULTLIB:MSVCRT"]
+
+# macOS target configuration
+# Adds CGPreLoginApp section for login window support
 [target.'cfg(target_os="macos")']
 rustflags = [
     "-C", "link-args=-sectcreate __CGPreLoginApp __cgpreloginapp /dev/null",
 ]
-#[target.'cfg(target_os="linux")']
-# glibc-static required, this may fix https://github.com/rustdesk/rustdesk/issues/9103, but I do not want this big change
-# this is unlikely to help also, because the other so files still use libc dynamically
-#rustflags = [
-#    "-C", "link-args=-Wl,-Bstatic -lc -Wl,-Bdynamic"
-#]
+
+# Linux target configuration (disabled)
+# Static glibc linking may help with compatibility but increases binary size
+# #[target.'cfg(target_os="linux")']
+# rustflags = [
+#     "-C", "link-args=-Wl,-Bstatic -lc -Wl,-Bdynamic"
+# ]
+
+# Network configuration
+# Use system git CLI instead of built-in implementation for better compatibility
 [net]
 git-fetch-with-cli = true

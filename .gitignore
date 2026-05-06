@@ -5,10 +5,10 @@
 .DS_Store
 .env
 libsciter-gtk.so
-src/ui/inline.rs
+#src/ui/inline.rs
 extractor
 __pycache__
-src/version.rs
+#src/version.rs
 *dmg
 *exe
 *tgz

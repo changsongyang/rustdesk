@@ -34,7 +34,7 @@ static CLIPBOARD_SERVICE_OK: AtomicBool = AtomicBool::new(false);
 struct Handler {
     ctx: Option<ClipboardContext>,
     #[cfg(target_os = "windows")]
-    stream: Option<ipc::ConnectionTmpl<parity_tokio_ipc::ConnectionClient>>,
+    stream: Option<ipc::ConnectionTmpl<ipc::ConnClient>>,
     #[cfg(target_os = "windows")]
     rt: Option<Runtime>,
 }

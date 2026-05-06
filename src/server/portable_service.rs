@@ -521,7 +521,7 @@ pub mod server {
 pub mod client {
     use super::*;
     use crate::display_service;
-    use hbb_common::{anyhow::Context, message_proto::PointerDeviceEvent};
+    use hbb_common::{anyhow::Context, futures::StreamExt, message_proto::PointerDeviceEvent};
     use scrap::PixelBuffer;
 
     lazy_static::lazy_static! {
