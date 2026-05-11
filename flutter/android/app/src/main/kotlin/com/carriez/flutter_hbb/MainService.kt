@@ -423,11 +423,16 @@ class MainService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
-                Log.d(logTag, "createAudioRecorder fail")
+            // 检查录音权限
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
+                    Log.d(logTag, "createAudioRecorder fail")
+                } else {
+                    Log.d(logTag, "audio recorder start")
+                    audioRecordHandle.startAudioRecorder()
+                }
             } else {
-                Log.d(logTag, "audio recorder start")
-                audioRecordHandle.startAudioRecorder()
+                Log.d(logTag, "Record audio permission not granted, skipping audio capture")
             }
         }
         checkMediaPermission()
