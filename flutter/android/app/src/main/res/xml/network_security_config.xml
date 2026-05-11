@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 基础配置：生产环境默认禁用明文流量，强制TLSv1.2+ -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <versions>
+            <version>TLSv1.2</version>
+            <version>TLSv1.3</version>
+        </versions>
+    </base-config>
+
+    <!-- HSTS配置：强制使用HTTPS -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">ycsit.cn</domain>
+        <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
+
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+
+        <hsts>
+            <domain includeSubdomains="true">ycsit.cn</domain>
+            <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
+        </hsts>
+    </domain-config>
+
+    <!-- 调试配置：仅在DEBUG模式下允许明文流量 -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
