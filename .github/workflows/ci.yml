@@ -240,8 +240,8 @@ jobs:
     - name: Run tests
       run: cargo test --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
 
-    - name: Setup tmate session on failure
-      uses: mxschmitt/action-tmate@v3
-      if: failure()
-      with:
-        limit-access-to-actor: true
+    # - name: Setup tmate session on failure
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: failure()
+    #   with:
+    #     limit-access-to-actor: true
