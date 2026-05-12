@@ -174,7 +174,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2
 
     - name: Build
-      run: cargo build --locked --target=${{ matrix.job.target }}
+      run: cargo build --target=${{ matrix.job.target }}
 
     - name: clean
       shell: bash
@@ -238,7 +238,7 @@ jobs:
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 
     - name: Run tests
-      run: cargo test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+      run: cargo test --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
 
     - name: Setup tmate session on failure
       uses: mxschmitt/action-tmate@v3
