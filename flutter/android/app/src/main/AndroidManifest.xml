@@ -1,133 +1,129 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.carriez.flutter_hbb">
+&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.carriez.flutter_hbb"&gt;
 
-    <!-- 核心权限：网络通信 -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    &lt;!-- 核心权限：网络通信 --&gt;
+    &lt;uses-permission android:name="android.permission.INTERNET" /&gt;
+    &lt;uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /&gt;
 
-    <!-- 核心权限：前台服务 -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    &lt;!-- 核心权限：前台服务 --&gt;
+    &lt;uses-permission android:name="android.permission.FOREGROUND_SERVICE" /&gt;
+    &lt;uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" /&gt;
 
-    <!-- 核心权限：音频传输 -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    &lt;!-- 核心权限：音频传输 --&gt;
+    &lt;uses-permission android:name="android.permission.RECORD_AUDIO" /&gt;
 
-    <!-- 核心权限：通知（Android 13+） -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    &lt;!-- 核心权限：通知（Android 13+） --&gt;
+    &lt;uses-permission android:name="android.permission.POST_NOTIFICATIONS" /&gt;
 
-    <!-- 存储权限：文件传输（Android 10及以下） -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    &lt;!-- 存储权限：文件传输（Android 10及以下） --&gt;
+    &lt;uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /&gt;
+    &lt;uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /&gt;
 
-    <!-- 存储权限：文件传输（Android 13+） -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    &lt;!-- 存储权限：文件传输（Android 13+） --&gt;
+    &lt;uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /&gt;
+    &lt;uses-permission android:name="android.permission.READ_MEDIA_VIDEO" /&gt;
+    &lt;uses-permission android:name="android.permission.READ_MEDIA_AUDIO" /&gt;
 
-    <!-- 存储权限：完全文件访问（Android 11+，按需申请） -->
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    &lt;!-- 系统权限：开机自启动 --&gt;
+    &lt;uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" /&gt;
 
-    <!-- 系统权限：开机自启动 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    &lt;!-- 系统权限：电池优化 --&gt;
+    &lt;uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /&gt;
 
-    <!-- 系统权限：电池优化 -->
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    &lt;!-- 系统权限：保持唤醒（防止后台进程被系统终止） --&gt;
+    &lt;uses-permission android:name="android.permission.WAKE_LOCK" /&gt;
 
-    <!-- 系统权限：保持唤醒（防止后台进程被系统终止） -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    &lt;!-- 系统权限：悬浮窗显示 --&gt;
+    &lt;uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /&gt;
 
-    <!-- 系统权限：悬浮窗显示 -->
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    &lt;queries&gt;
+        &lt;intent&gt;
+            &lt;!-- https://developer.android.com/training/package-visibility/use-cases#open-urls-custom-tabs --&gt;
+            &lt;action android:name="android.support.customtabs.action.CustomTabsService" /&gt;
+        &lt;/intent&gt;
+    &lt;/queries&gt;
 
-    <queries>
-        <intent>
-            <!-- https://developer.android.com/training/package-visibility/use-cases#open-urls-custom-tabs -->
-            <action android:name="android.support.customtabs.action.CustomTabsService" />
-        </intent>
-    </queries>
-
-    <application
+    &lt;application
         android:name=".MainApplication"
         android:icon="@mipmap/ic_launcher"
         android:label="RustDesk"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"&gt;
 
-        <!-- 开机自启动接收器 -->
-        <receiver
+        &lt;!-- 开机自启动接收器 --&gt;
+        &lt;receiver
             android:name=".BootReceiver"
             android:enabled="true"
-            android:exported="true">
-            <intent-filter android:priority="1000">
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
+            android:exported="true"&gt;
+            &lt;intent-filter android:priority="1000"&gt;
+                &lt;action android:name="android.intent.action.BOOT_COMPLETED" /&gt;
+                &lt;action android:name="android.intent.action.QUICKBOOT_POWERON" /&gt;
+                &lt;action android:name="com.carriez.flutter_hbb.DEBUG_BOOT_COMPLETED" /&gt;
+            &lt;/intent-filter&gt;
+        &lt;/receiver&gt;
 
-        <service
+        &lt;service
             android:name=".InputService"
             android:enabled="true"
             android:exported="false"
             android:label="RustDesk Input"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"&gt;
+            &lt;intent-filter&gt;
+                &lt;action android:name="android.accessibilityservice.AccessibilityService" /&gt;
+            &lt;/intent-filter&gt;
 
-            <meta-data
+            &lt;meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
+                android:resource="@xml/accessibility_service_config" /&gt;
+        &lt;/service&gt;
 
-        <activity
+        &lt;activity
             android:name=".MainActivity"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode|navigation"
             android:exported="true"
             android:hardwareAccelerated="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
-            android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+            android:windowSoftInputMode="adjustResize"&gt;
+            &lt;intent-filter&gt;
+                &lt;action android:name="android.intent.action.MAIN" /&gt;
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+                &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+            &lt;/intent-filter&gt;
 
-            <!-- Intent for deep linking-->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="rustdesk" />
-            </intent-filter>
-        </activity>
+            &lt;!-- Intent for deep linking--&gt;
+            &lt;intent-filter&gt;
+                &lt;action android:name="android.intent.action.VIEW" /&gt;
+                &lt;category android:name="android.intent.category.DEFAULT" /&gt;
+                &lt;category android:name="android.intent.category.BROWSABLE" /&gt;
+                &lt;data android:scheme="rustdesk" /&gt;
+            &lt;/intent-filter&gt;
+        &lt;/activity&gt;
 
-        <activity
+        &lt;activity
             android:name=".PermissionRequestTransparentActivity"
             android:excludeFromRecents="true"
-            android:theme="@style/Transparent" />
+            android:theme="@style/Transparent" /&gt;
 
-        <service
+        &lt;service
             android:name=".MainService"
             android:enabled="true"
-            android:foregroundServiceType="mediaProjection" />
+            android:foregroundServiceType="mediaProjection" /&gt;
 
-        <service
+        &lt;service
             android:name=".FloatingWindowService"
-            android:enabled="true" />
+            android:enabled="true" /&gt;
 
-        <!--
+        &lt;!--
  Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
-        -->
-        <meta-data
+        --&gt;
+        &lt;meta-data
             android:name="flutterEmbedding"
-            android:value="2" />
-    </application>
+            android:value="2" /&gt;
+    &lt;/application&gt;
 
-</manifest>
+&lt;/manifest&gt;

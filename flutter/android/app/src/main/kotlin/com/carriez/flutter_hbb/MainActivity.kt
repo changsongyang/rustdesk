@@ -41,6 +41,9 @@ class MainActivity : FlutterActivity() {
         private var _rdClipboardManager: RdClipboardManager? = null
         val rdClipboardManager: RdClipboardManager?
             get() = _rdClipboardManager;
+        private var _safHelper: StorageAccessFrameworkHelper? = null
+        val safHelper: StorageAccessFrameworkHelper?
+            get() = _safHelper;
     }
 
     private val channelTag = "mChannel"
@@ -94,6 +97,51 @@ class MainActivity : FlutterActivity() {
         if (requestCode == REQ_INVOKE_PERMISSION_ACTIVITY_MEDIA_PROJECTION && resultCode == RES_FAILED) {
             flutterMethodChannel?.invokeMethod("on_media_projection_canceled", null)
         }
+        // 处理 SAF 相关结果
+        _safHelper?.handleActivityResult(requestCode, resultCode, data) { result -&gt;
+            when (result) {
+                is StorageAccessFrameworkHelper.SAFResult.FilePicked -&gt; {
+                    flutterMethodChannel?.invokeMethod(
+                        "saf_file_picked",
+                        mapOf(
+                            "uri" to result.uri.toString(),
+                            "fileName" to _safHelper?.getFileName(result.uri)
+                        )
+                    )
+                }
+                is StorageAccessFrameworkHelper.SAFResult.MultipleFilesPicked -&gt; {
+                    val uris = result.uris.map { uri -&gt;
+                        mapOf(
+                            "uri" to uri.toString(),
+                            "fileName" to _safHelper?.getFileName(uri)
+                        )
+                    }
+                    flutterMethodChannel?.invokeMethod("saf_multiple_files_picked", mapOf("files" to uris))
+                }
+                is StorageAccessFrameworkHelper.SAFResult.DirectoryPicked -&gt; {
+                    flutterMethodChannel?.invokeMethod(
+                        "saf_directory_picked",
+                        mapOf("uri" to result.uri.toString())
+                    )
+                }
+                is StorageAccessFrameworkHelper.SAFResult.FileCreated -&gt; {
+                    flutterMethodChannel?.invokeMethod(
+                        "saf_file_created",
+                        mapOf("uri" to result.uri.toString())
+                    )
+                }
+                is StorageAccessFrameworkHelper.SAFResult.Cancelled -&gt; {
+                    flutterMethodChannel?.invokeMethod("saf_cancelled", null)
+                }
+                is StorageAccessFrameworkHelper.SAFResult.Failed -&gt; {
+                    flutterMethodChannel?.invokeMethod(
+                        "saf_error",
+                        mapOf("message" to result.message)
+                    )
+                }
+                else -&gt; {}
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +149,9 @@ class MainActivity : FlutterActivity() {
         if (_rdClipboardManager == null) {
             _rdClipboardManager = RdClipboardManager(getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             FFI.setClipboardManager(_rdClipboardManager!!)
+        }
+        if (_safHelper == null) {
+            _safHelper = StorageAccessFrameworkHelper(this)
         }
     }
 
@@ -270,10 +321,46 @@ class MainActivity : FlutterActivity() {
                 "on_voice_call_started" -> {
                     onVoiceCallStarted()
                 }
-                "on_voice_call_closed" -> {
+                "on_voice_call_closed" -&gt; {
                     onVoiceCallClosed()
                 }
-                else -> {
+                // ============ SAF (Storage Access Framework) 相关方法 ============
+                "saf_open_file_picker" -&gt; {
+                    val args = call.arguments as? Map&lt;*, *&gt;
+                    val mimeType = args?.get("mimeType") as? String ?: "*/*"
+                    _safHelper?.openFilePicker(this, mimeType)
+                    result.success(true)
+                }
+                "saf_open_multiple_file_picker" -&gt; {
+                    val args = call.arguments as? Map&lt;*, *&gt;
+                    val mimeType = args?.get("mimeType") as? String ?: "*/*"
+                    _safHelper?.openMultipleFilePicker(this, mimeType)
+                    result.success(true)
+                }
+                "saf_open_directory_picker" -&gt; {
+                    if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.LOLLIPOP) {
+                        _safHelper?.openDirectoryPicker(this)
+                        result.success(true)
+                    } else {
+                        result.error("-1", "Directory picker requires Android 5.0+", null)
+                    }
+                }
+                "saf_open_create_file_picker" -&gt; {
+                    val args = call.arguments as? Map&lt;*, *&gt;
+                    val mimeType = args?.get("mimeType") as? String ?: "*/*"
+                    val fileName = args?.get("fileName") as? String ?: "file"
+                    _safHelper?.openCreateFilePicker(this, mimeType, fileName)
+                    result.success(true)
+                }
+                "saf_get_app_download_dir" -&gt; {
+                    val dir = _safHelper?.getAppDownloadDirectory()?.absolutePath
+                    result.success(dir)
+                }
+                "saf_get_app_cache_dir" -&gt; {
+                    val dir = _safHelper?.getAppCacheDirectory()?.absolutePath
+                    result.success(dir)
+                }
+                else -&gt; {
                     result.error("-1", "No such method", null)
                 }
             }
