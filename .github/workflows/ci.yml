@@ -68,6 +68,7 @@ jobs:
   build:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -86,17 +87,15 @@ jobs:
     steps:
     - name: Free Disk Space (Ubuntu)
       if: runner.os == 'Linux'
-      # jlumbroso/free-disk-space@main is used in .github\workflows\flutter-build.yml
-      # But pinning to a specific version to avoid unexpected issues is preferred.
       uses: jlumbroso/free-disk-space@v1.3.1
       with:
-        tool-cache: false
+        tool-cache: true
         android: true
         dotnet: true
         haskell: true
-        large-packages: false
+        large-packages: true
         docker-images: true
-        swap-storage: false
+        swap-storage: true
 
     - name: Export GitHub Actions cache environment variables
       uses: actions/github-script@v6
@@ -175,11 +174,7 @@ jobs:
     - uses: Swatinem/rust-cache@v2
 
     - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        use-cross: ${{ matrix.job.use-cross }}
-        command: build
-        args: --locked --target=${{ matrix.job.target }}
+      run: cargo build --locked --target=${{ matrix.job.target }}
 
     - name: clean
       shell: bash
@@ -243,8 +238,10 @@ jobs:
         echo "CARGO_TEST_OPTIONS=${CARGO_TEST_OPTIONS}" >> $GITHUB_OUTPUT
 
     - name: Run tests
-      uses: actions-rs/cargo@v1
+      run: cargo test --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+
+    - name: Setup tmate session on failure
+      uses: mxschmitt/action-tmate@v3
+      if: failure()
       with:
-        use-cross: ${{ matrix.job.use-cross }}
-        command: test
-        args: --locked --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
+        limit-access-to-actor: true
