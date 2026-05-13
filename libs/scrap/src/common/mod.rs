@@ -39,7 +39,7 @@ pub mod codec;
 pub mod convert;
 #[cfg(feature = "hwcodec")]
 pub mod hwcodec;
-#[cfg(feature = "mediacodec")]
+#[cfg(all(feature = "mediacodec", target_os = "android"))]
 pub mod mediacodec;
 pub mod vpxcodec;
 #[cfg(feature = "vram")]
@@ -534,6 +534,16 @@ pub trait GoogleImage {
             (y, u, v)
         }
     }
+}
+
+pub fn get_bytes_per_row(w: usize, fmt: ImageFormat, align: usize) -> usize {
+    let bytes_per_pixel = match fmt {
+        ImageFormat::Raw => 3,
+        ImageFormat::ARGB | ImageFormat::ABGR => 4,
+    };
+    // https://github.com/lemenkov/libyuv/blob/6900494d90ae095d44405cd4cc3f346971fa69c9/source/convert_argb.cc#L128
+    // https://github.com/lemenkov/libyuv/blob/6900494d90ae095d44405cd4cc3f346971fa69c9/source/convert_argb.cc#L129
+    (w * bytes_per_pixel + align - 1) & !(align - 1)
 }
 
 #[cfg(target_os = "android")]

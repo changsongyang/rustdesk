@@ -259,7 +259,7 @@ mod cpal_impl {
         send_f32(&data, encoder, sp);
     }
 
-    #[cfg(feature = "screencapturekit")]
+    #[cfg(all(feature = "screencapturekit", not(windows)))]
     fn get_device() -> ResultType<(Device, SupportedStreamConfig)> {
         let audio_input = super::get_audio_input();
         if !audio_input.is_empty() {

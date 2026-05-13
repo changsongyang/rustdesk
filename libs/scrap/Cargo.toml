@@ -11,7 +11,7 @@ edition = "2018"
 
 [features]
 wayland = ["gstreamer", "gstreamer-app", "gstreamer-video", "dbus", "tracing", "zbus"]
-mediacodec = ["ndk"]
+mediacodec = []
 linux-pkg-config = ["dep:pkg-config"]
 hwcodec = ["dep:hwcodec"]
 vram = ["hwcodec/vram"]

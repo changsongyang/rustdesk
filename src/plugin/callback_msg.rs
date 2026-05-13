@@ -1,7 +1,7 @@
 use super::*;
-use crate::hbbs_http::create_http_client;
+use crate::hbbs_http::create_http_client_with_url;
 use crate::{
-    flutter::{self, APP_TYPE_CM, APP_TYPE_MAIN, SESSIONS},
+    flutter::{self, APP_TYPE_CM, APP_TYPE_MAIN, sessions},
     ui_interface::get_api_server,
 };
 use hbb_common::{lazy_static, log, message_proto::PluginRequest};
@@ -142,7 +142,7 @@ pub(super) extern "C" fn cb_msg(
     match &target as _ {
         MSG_TO_PEER_TARGET => {
             cb_msg_field!(peer);
-            if let Some(session) = SESSIONS.write().unwrap().get_mut(&peer) {
+            if let Some(session) = sessions::SESSIONS.write().unwrap().get_mut(&peer) {
                 let content_slice =
                     unsafe { std::slice::from_raw_parts(content as *const u8, len) };
                 let content_vec = Vec::from(content_slice);
@@ -281,7 +281,7 @@ fn request_plugin_sign(id: String, msg_to_rustdesk: MsgToRustDesk) -> PluginRetu
     );
     thread::spawn(move || {
         let sign_url = format!("{}/lic/web/api/plugin-sign", get_api_server());
-        let client = create_http_client();
+        let client = create_http_client_with_url(&sign_url);
         let req = PluginSignReq {
             plugin_id: id.clone(),
             version: signature_data.version,

@@ -12,7 +12,7 @@ pub fn create_cliprdr_context(
     Ok(boxed)
 }
 
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 pub mod unix;
 
 #[cfg(all(feature = "unix-file-copy-paste", target_os = "macos"))]
@@ -22,5 +22,15 @@ pub fn create_cliprdr_context(
     _response_wait_timeout_secs: u32,
 ) -> crate::ResultType<Box<dyn crate::CliprdrServiceContext>> {
     let boxed = unix::macos::pasteboard_context::create_pasteboard_context()? as Box<_>;
+    Ok(boxed)
+}
+
+#[cfg(all(feature = "unix-file-copy-paste", target_os = "linux"))]
+pub fn create_cliprdr_context(
+    _enable_files: bool,
+    _enable_others: bool,
+    _response_wait_timeout_secs: u32,
+) -> crate::ResultType<Box<dyn crate::CliprdrServiceContext>> {
+    let boxed = unix::fuse::cs::create_cliprdr_context()? as Box<_>;
     Ok(boxed)
 }

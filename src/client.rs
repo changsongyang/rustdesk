@@ -36,7 +36,7 @@ use crate::{
     ui_interface::{get_builtin_option, resolve_avatar_url, use_texture_render},
     ui_session_interface::{InvokeUiSession, Session},
 };
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 use crate::{clipboard::check_clipboard_files, clipboard_file::unix_file_clip};
 pub use file_trait::FileManager;
 #[cfg(not(feature = "flutter"))]
@@ -1107,7 +1107,7 @@ impl ClientClipboardHandler {
 
     fn check_clipboard(&mut self) {
         if CLIPBOARD_STATE.lock().unwrap().running {
-            #[cfg(feature = "unix-file-copy-paste")]
+            #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
             if let Some(urls) = check_clipboard_files(&mut self.ctx, ClipboardSide::Client, false) {
                 if !urls.is_empty() {
                     #[cfg(target_os = "macos")]

@@ -302,15 +302,13 @@ pub fn resample_channels(
     sample_rate: u32,
     channels: u16,
 ) -> Vec<f32> {
-    use rubato::{
-        InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction,
-    };
+    use rubato::{InterpolationParameters, Resampler, SincFixedIn};
     let params = InterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Nearest,
+        interpolation: rubato::InterpolationType::Nearest,
         oversampling_factor: 160,
-        window: WindowFunction::BlackmanHarris2,
+        window: rubato::WindowFunction::BlackmanHarris2,
     };
     let mut resampler = SincFixedIn::<f64>::new(
         sample_rate as f64 / sample_rate0 as f64,
@@ -389,7 +387,7 @@ pub fn audio_resample(
     }
 }
 
-#[cfg(feature = "use_samplerate")]
+#[cfg(all(feature = "use_samplerate", not(feature = "use_dasp")))]
 pub fn audio_resample(
     data: &[f32],
     sample_rate0: u32,
