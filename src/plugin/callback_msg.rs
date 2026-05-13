@@ -376,11 +376,13 @@ fn push_event_to_ui(channel: u16, peer: &str, content: &str) {
         }
     }
     if !peer.is_empty() && is_peer_channel(channel) {
-        let _res = flutter::push_session_event(
-            &peer,
-            MSG_TO_UI_TYPE_PLUGIN_EVENT,
-            vec![("peer", &peer), ("content", &content)],
-        );
+        if let Ok(session_id) = uuid::Uuid::from_str(peer) {
+            let _res = flutter::push_session_event(
+                &session_id,
+                MSG_TO_UI_TYPE_PLUGIN_EVENT,
+                vec![("peer", &peer), ("content", &content)],
+            );
+        }
     }
 }
 
@@ -404,8 +406,10 @@ fn push_option_to_ui(channel: u16, id: &str, peer: &str, msg: &MsgToConfig, ui: 
 
     // Send remote, transfer and forward
     if !peer.is_empty() && is_peer_channel(channel) {
-        let mut v = v.to_vec();
-        v.push(("peer", &peer));
-        let _res = flutter::push_session_event(&peer, MSG_TO_UI_TYPE_PLUGIN_OPTION, v);
+        if let Ok(session_id) = uuid::Uuid::from_str(peer) {
+            let mut v = v.to_vec();
+            v.push(("peer", &peer));
+            let _res = flutter::push_session_event(&session_id, MSG_TO_UI_TYPE_PLUGIN_OPTION, v);
+        }
     }
 }

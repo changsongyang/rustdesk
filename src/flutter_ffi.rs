@@ -61,7 +61,7 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
         );
         #[cfg(not(debug_assertions))]
         hbb_common::init_log(false, "");
-        #[cfg(feature = "mediacodec")]
+        #[cfg(all(feature = "mediacodec", target_os = "android"))]
         scrap::mediacodec::check_mediacodec();
         crate::common::test_rendezvous_server();
         crate::common::test_nat_type();
@@ -2786,9 +2786,9 @@ pub fn session_request_new_display_init_msgs(session_id: SessionID, display: usi
 pub fn main_audio_support_loopback() -> SyncReturn<bool> {
     #[cfg(target_os = "windows")]
     let is_surpport = true;
-    #[cfg(feature = "screencapturekit")]
+    #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
     let is_surpport = crate::audio_service::is_screen_capture_kit_available();
-    #[cfg(not(any(target_os = "windows", feature = "screencapturekit")))]
+    #[cfg(not(any(target_os = "windows", all(feature = "screencapturekit", target_os = "macos"))))]
     let is_surpport = false;
     SyncReturn(is_surpport)
 }

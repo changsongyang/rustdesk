@@ -55,13 +55,15 @@ impl PluginNativeHandler for PluginNativeSessionHandler {
             "start_session" => {
                 if let Some(id) = data.get("id") {
                     if let Some(id) = id.as_str() {
-                        let sessions = SESSION_HANDLER.sessions.read().unwrap();
-                        for session in sessions.iter() {
-                            if session.id == id {
-                                let round =
-                                    session.connection_round_state.lock().unwrap().new_round();
-                                crate::ui_session_interface::io_loop(session.clone(), round);
-                            }
+                        let mut sessions = SESSION_HANDLER.sessions.write().unwrap();
+                        if let Some(index) = sessions.iter().position(|session| session.lc.read().unwrap().session_id.to_string() == id) {
+                            let session = sessions.remove(index);
+                            let round = session.connection_round_state.lock().unwrap().new_round();
+                            let session = Arc::try_unwrap(session).unwrap_or_else(|arc| {
+                                log::warn!("Failed to unwrap session Arc, using clone");
+                                (*arc).clone()
+                            });
+                            crate::ui_session_interface::io_loop(session, round);
                         }
                     }
                 }
@@ -122,7 +124,7 @@ impl PluginNativeHandler for PluginNativeSessionHandler {
 impl PluginNativeSessionHandler {
     fn create_session(&self, session_id: String) -> String {
         let session =
-            crate::flutter::session_add(&session_id, false, false, false, "", false, "".to_owned());
+            crate::flutter::session_add(&session_id, &session_id, false, false, false, false, false, "", false, "".to_owned(), false, None);
         if let Ok(session) = session {
             let mut sessions = self.sessions.write().unwrap();
             sessions.push(session);

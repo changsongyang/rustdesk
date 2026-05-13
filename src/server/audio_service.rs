@@ -309,7 +309,7 @@ mod cpal_impl {
 
     fn get_audio_input(audio_input: &str) -> ResultType<(Device, SupportedStreamConfig)> {
         let mut device = None;
-        #[cfg(feature = "screencapturekit")]
+        #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
         if !audio_input.is_empty() && is_screen_capture_kit_available() {
             for d in HOST_SCREEN_CAPTURE_KIT
                 .as_ref()?
