@@ -3769,7 +3769,7 @@ class FFI {
     // CAUTION: `sessionStart()` and `sessionStartWithDisplays()` are an async functions.
     // Though the stream is returned immediately, the stream may not be ready.
     // Any operations that depend on the stream should be carefully handled.
-    late final Stream<EventToUI> stream;
+    late final Stream<String> stream;
     if (isNewPeer || display == null || displays == null) {
       stream = bind.sessionStart(sessionId: sessionId, id: id);
     } else {
@@ -3822,8 +3822,23 @@ class FFI {
         isToNewWindowNotified.value = true;
       }
       () async {
-        if (message is EventToUI_Event) {
-          if (message.field0 == "close") {
+        // Parse JSON string from Rust
+        List<dynamic>? eventData;
+        try {
+          eventData = json.decode(message) as List<dynamic>;
+        } catch (e) {
+          debugPrint('json.decode fail: $e, message: $message');
+          return;
+        }
+        
+        if (eventData == null || eventData.isEmpty) {
+          return;
+        }
+        
+        final int eventType = eventData[0] as int;
+        if (eventType == 0) { // EventToUI::Event
+          final String eventStr = eventData[1] as String;
+          if (eventStr == "close") {
             closed = true;
             debugPrint('Exit session event loop');
             return;
@@ -3831,15 +3846,15 @@ class FFI {
 
           Map<String, dynamic>? event;
           try {
-            event = json.decode(message.field0);
+            event = json.decode(eventStr);
           } catch (e) {
-            debugPrint('json.decode fail1(): $e, ${message.field0}');
+            debugPrint('json.decode fail1(): $e, $eventStr');
           }
           if (event != null) {
             await cb(event);
           }
-        } else if (message is EventToUI_Rgba) {
-          final display = message.field0;
+        } else if (eventType == 1) { // EventToUI::Rgba
+          final display = eventData[1] as int;
           // Fetch the image buffer from rust codes.
           final sz = platformFFI.getRgbaSize(sessionId, display);
           if (sz == 0) {
@@ -3853,9 +3868,9 @@ class FFI {
           } else {
             platformFFI.nextRgba(sessionId, display);
           }
-        } else if (message is EventToUI_Texture) {
-          final display = message.field0;
-          final gpuTexture = message.field1;
+        } else if (eventType == 2) { // EventToUI::Texture
+          final display = eventData[1] as int;
+          final gpuTexture = eventData[2] as bool;
           debugPrint(
               "EventToUI_Texture display:$display, gpuTexture:$gpuTexture");
           if (gpuTexture && !hasGpuTextureRender) {

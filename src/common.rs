@@ -312,10 +312,11 @@ pub fn resample_channels(
     };
     let mut resampler = SincFixedIn::<f64>::new(
         sample_rate as f64 / sample_rate0 as f64,
+        0.9, // f_cutoff: cutoff frequency relative to Nyquist frequency
         params,
-        data.len() / (channels as usize),
         channels as _,
-    );
+        data.len() / (channels as usize),
+    )?;
     let mut waves_in = Vec::new();
     if channels == 2 {
         waves_in.push(
