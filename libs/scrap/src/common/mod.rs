@@ -51,6 +51,7 @@ pub const HW_STRIDE_ALIGN: usize = 0; // recommended by av_frame_get_buffer
 pub mod aom;
 #[cfg(not(any(target_os = "ios")))]
 pub mod camera;
+#[cfg(not(target_os = "android"))]
 pub mod record;
 mod vpx;
 

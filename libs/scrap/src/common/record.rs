@@ -1,13 +1,18 @@
+#[cfg(not(target_os = "android"))]
 use crate::CodecFormat;
+#[cfg(not(target_os = "android"))]
 #[cfg(feature = "hwcodec")]
 use hbb_common::anyhow::anyhow;
+#[cfg(not(target_os = "android"))]
 use hbb_common::{
     bail, chrono, log,
     message_proto::{message, video_frame, EncodedVideoFrame, Message},
     ResultType,
 };
+#[cfg(not(target_os = "android"))]
 #[cfg(feature = "hwcodec")]
 use hwcodec::mux::{MuxContext, Muxer};
+#[cfg(not(target_os = "android"))]
 use std::{
     fs::{File, OpenOptions},
     io,
@@ -16,10 +21,13 @@ use std::{
     sync::mpsc::Sender,
     time::Instant,
 };
+#[cfg(not(target_os = "android"))]
 use webm::mux::{self, Segment, Track, VideoTrack, Writer};
 
+#[cfg(not(target_os = "android"))]
 const MIN_SECS: u64 = 1;
 
+#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone)]
 pub struct RecorderContext {
     pub server: bool,
@@ -30,6 +38,7 @@ pub struct RecorderContext {
     pub tx: Option<Sender<RecordState>>,
 }
 
+#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone)]
 pub struct RecorderContext2 {
     pub filename: String,
@@ -38,6 +47,7 @@ pub struct RecorderContext2 {
     pub format: CodecFormat,
 }
 
+#[cfg(not(target_os = "android"))]
 impl RecorderContext2 {
     pub fn set_filename(&mut self, ctx: &RecorderContext) -> ResultType<()> {
         if !PathBuf::from(&ctx.dir).exists() {
@@ -69,24 +79,7 @@ impl RecorderContext2 {
     }
 }
 
-unsafe impl Send for Recorder {}
-unsafe impl Sync for Recorder {}
-
-pub trait RecorderApi {
-    fn new(ctx: RecorderContext, ctx2: RecorderContext2) -> ResultType<Self>
-    where
-        Self: Sized;
-    fn write_video(&mut self, frame: &EncodedVideoFrame) -> bool;
-}
-
-#[derive(Debug)]
-pub enum RecordState {
-    NewFile(String),
-    NewFrame,
-    WriteTail,
-    RemoveFile,
-}
-
+#[cfg(not(target_os = "android"))]
 pub struct Recorder {
     pub inner: Option<Box<dyn RecorderApi>>,
     ctx: RecorderContext,
@@ -95,6 +88,29 @@ pub struct Recorder {
     check_failed: bool,
 }
 
+#[cfg(not(target_os = "android"))]
+unsafe impl Send for Recorder {}
+#[cfg(not(target_os = "android"))]
+unsafe impl Sync for Recorder {}
+
+#[cfg(not(target_os = "android"))]
+pub trait RecorderApi {
+    fn new(ctx: RecorderContext, ctx2: RecorderContext2) -> ResultType<Self>
+    where
+        Self: Sized;
+    fn write_video(&mut self, frame: &EncodedVideoFrame) -> bool;
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(Debug)]
+pub enum RecordState {
+    NewFile(String),
+    NewFrame,
+    WriteTail,
+    RemoveFile,
+}
+
+#[cfg(not(target_os = "android"))]
 impl Deref for Recorder {
     type Target = Option<Box<dyn RecorderApi>>;
 
@@ -103,12 +119,14 @@ impl Deref for Recorder {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 impl DerefMut for Recorder {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
 
+#[cfg(not(target_os = "android"))]
 impl Recorder {
     pub fn new(ctx: RecorderContext) -> ResultType<Self> {
         Ok(Self {
@@ -270,6 +288,7 @@ impl Recorder {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 struct WebmRecorder {
     vt: VideoTrack,
     webm: Option<Segment<Writer<File>>>,
@@ -280,6 +299,7 @@ struct WebmRecorder {
     start: Instant,
 }
 
+#[cfg(not(target_os = "android"))]
 impl RecorderApi for WebmRecorder {
     fn new(ctx: RecorderContext, ctx2: RecorderContext2) -> ResultType<Self> {
         let out = match {
@@ -344,6 +364,7 @@ impl RecorderApi for WebmRecorder {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 impl Drop for WebmRecorder {
     fn drop(&mut self) {
         let _ = std::mem::replace(&mut self.webm, None).map_or(false, |webm| webm.finalize(None));
@@ -356,6 +377,7 @@ impl Drop for WebmRecorder {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[cfg(feature = "hwcodec")]
 struct HwRecorder {
     muxer: Option<Muxer>,
@@ -366,6 +388,7 @@ struct HwRecorder {
     start: Instant,
 }
 
+#[cfg(not(target_os = "android"))]
 #[cfg(feature = "hwcodec")]
 impl RecorderApi for HwRecorder {
     fn new(ctx: RecorderContext, ctx2: RecorderContext2) -> ResultType<Self> {
@@ -407,6 +430,7 @@ impl RecorderApi for HwRecorder {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[cfg(feature = "hwcodec")]
 impl Drop for HwRecorder {
     fn drop(&mut self) {
