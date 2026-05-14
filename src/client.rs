@@ -1623,6 +1623,7 @@ impl VideoHandler {
                     }
                 }
                 self.first_frame = false;
+                #[cfg(not(target_os = "android"))]
                 if self.record {
                     self.recorder.lock().unwrap().as_mut().map(|r| {
                         let (w, h) = if *pixelbuffer {
