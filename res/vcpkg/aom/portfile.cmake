@@ -9,10 +9,12 @@ get_filename_component(PERL_PATH ${PERL} DIRECTORY)
 vcpkg_add_to_path(${PERL_PATH})
 
 # Default to aom 3.9.1 for compatibility with Rust bindings
+# Use changsongyang/aom mirror since googlesource.com is unreachable
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
-    URL "https://aomedia.googlesource.com/aom"
-    REF 8ad484f8a18ed1853c094e7d3a4e023b2a92df28 # 3.9.1
+    URL "https://github.com/changsongyang/aom.git"
+    REF 8ad484f8a18ed1853c094e7d3a4e023b2a92df28
+    FETCH_REF "v3.9.1"
     PATCHES
         aom-uninitialized-pointer.diff
         aom-avx2.diff
@@ -46,6 +48,7 @@ vcpkg_cmake_install()
 vcpkg_copy_pdbs()
 
 vcpkg_fixup_pkgconfig()
+
 
 if(VCPKG_TARGET_IS_WINDOWS)
   vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/lib/pkgconfig/aom.pc" " -lm" "")
