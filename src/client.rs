@@ -75,6 +75,7 @@ use hbb_common::{
 pub use helper::*;
 use scrap::{
     codec::Decoder,
+    #[cfg(not(target_os = "android"))]
     record::{Recorder, RecorderContext},
     CodecFormat, ImageFormat, ImageRgb, ImageTexture,
 };
@@ -1541,7 +1542,10 @@ pub struct VideoHandler {
     decoder: Decoder,
     pub rgb: ImageRgb,
     pub texture: ImageTexture,
+    #[cfg(not(target_os = "android"))]
     recorder: Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    recorder: (),
     record: bool,
     _display: usize, // useful for debug
     fail_counter: usize,
@@ -1651,6 +1655,7 @@ impl VideoHandler {
     }
 
     /// Start or stop screen record.
+    #[cfg(not(target_os = "android"))]
     pub fn record_screen(&mut self, start: bool, id: String, display_idx: usize, camera: bool) {
         self.record = false;
         if start {
@@ -1668,6 +1673,11 @@ impl VideoHandler {
         }
 
         self.record = start;
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn record_screen(&mut self, _start: bool, _id: String, _display_idx: usize, _camera: bool) {
+        self.record = false;
     }
 }
 

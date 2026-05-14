@@ -47,6 +47,7 @@ use scrap::Capturer;
 use scrap::{
     aom::AomEncoderConfig,
     codec::{Encoder, EncoderCfg},
+    #[cfg(not(target_os = "android"))]
     record::{Recorder, RecorderContext},
     vpxcodec::{VpxEncoderConfig, VpxVideoCodecId},
     CodecFormat, Display, EncodeInput, TraitCapturer, TraitPixelBuffer,
@@ -936,7 +937,10 @@ fn setup_encoder(
     EncoderCfg,
     CodecFormat,
     bool,
+    #[cfg(not(target_os = "android"))]
     Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    (),
 )> {
     let encoder_cfg = get_encoder_config(
         &c,
@@ -1031,6 +1035,7 @@ fn get_encoder_config(
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn get_recorder(
     record_incoming: bool,
     display_idx: usize,
@@ -1064,6 +1069,14 @@ fn get_recorder(
     };
 
     recorder
+}
+
+#[cfg(target_os = "android")]
+fn get_recorder(
+    _record_incoming: bool,
+    _display_idx: usize,
+    _camera: bool,
+) {
 }
 
 #[cfg(target_os = "android")]
@@ -1132,7 +1145,10 @@ fn handle_one_frame(
     frame: EncodeInput,
     ms: i64,
     encoder: &mut Encoder,
+    #[cfg(not(target_os = "android"))]
     recorder: Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    _recorder: (),
     encode_fail_counter: &mut usize,
     first_frame: &mut bool,
     width: usize,
@@ -1156,6 +1172,7 @@ fn handle_one_frame(
             vf.display = display as _;
             let mut msg = Message::new();
             msg.set_video_frame(vf);
+            #[cfg(not(target_os = "android"))]
             recorder
                 .lock()
                 .unwrap()
