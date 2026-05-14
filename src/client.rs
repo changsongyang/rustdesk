@@ -75,10 +75,10 @@ use hbb_common::{
 pub use helper::*;
 use scrap::{
     codec::Decoder,
-    #[cfg(not(target_os = "android"))]
-    record::{Recorder, RecorderContext},
     CodecFormat, ImageFormat, ImageRgb, ImageTexture,
 };
+#[cfg(not(target_os = "android"))]
+use scrap::record::{Recorder, RecorderContext};
 
 #[cfg(not(target_os = "ios"))]
 use crate::clipboard::CLIPBOARD_INTERVAL;
