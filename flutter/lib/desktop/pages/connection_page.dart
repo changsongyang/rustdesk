@@ -78,17 +78,36 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
               .marginOnly(left: em),
         );
 
-  Widget setupServerWidget() => Flexible(
-    child: Offstage(
-      offstage: !(!_svcStopped.value &&
-          stateGlobal.svcStatus.value == SvcStatus.ready &&
-          _svcIsUsingPublicServer.value),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [], 
-      ),
-    ),
-  );
+    setupServerWidget() => Flexible(
+          child: Offstage(
+            offstage: !(!_svcStopped.value &&
+                stateGlobal.svcStatus.value == SvcStatus.ready &&
+                _svcIsUsingPublicServer.value),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(', ', style: TextStyle(fontSize: em)),
+                Flexible(
+                  child: InkWell(
+                    onTap: onUsePublicServerGuide,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            translate('setup_server_tip'),
+                            style: TextStyle(
+                                decoration: TextDecoration.underline,
+                                fontSize: em),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
 
     basicWidget() => Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -308,15 +327,10 @@ class _ConnectionPageState extends State<ConnectionPage>
 
   /// Callback for the connect button.
   /// Connects to the selected peer.
-  void onConnect(
-      {bool isFileTransfer = false,
-      bool isViewCamera = false,
-      bool isTerminal = false}) {
+  void onConnect({bool isFileTransfer = false, bool isViewCamera = false}) {
     var id = _idController.id;
     connect(context, id,
-        isFileTransfer: isFileTransfer,
-        isViewCamera: isViewCamera,
-        isTerminal: isTerminal);
+        isFileTransfer: isFileTransfer, isViewCamera: isViewCamera);
   }
 
   /// UI for the remote ID TextField.
@@ -355,7 +369,6 @@ class _ConnectionPageState extends State<ConnectionPage>
                         rdpUsername: '',
                         loginName: '',
                         device_group_name: '',
-                        note: '',
                       );
                       _autocompleteOpts = [emptyPeer];
                     } else {
@@ -514,74 +527,64 @@ class _ConnectionPageState extends State<ConnectionPage>
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
-                    child: StatefulBuilder(
-                      builder: (context, setState) {
-                        var offset = Offset(0, 0);
-                        return Obx(() => InkWell(
-                              child: _menuOpen.value
-                                  ? Transform.rotate(
-                                      angle: pi,
-                                      child: Icon(IconFont.more, size: 14),
-                                    )
-                                  : Icon(IconFont.more, size: 14),
-                              onTapDown: (e) {
-                                offset = e.globalPosition;
-                              },
-                              onTap: () async {
-                                _menuOpen.value = true;
-                                final x = offset.dx;
-                                final y = offset.dy;
-                                await mod_menu
-                                    .showMenu(
-                                  context: context,
-                                  position: RelativeRect.fromLTRB(x, y, x, y),
-                                  items: [
-                                    (
-                                      'Transfer file',
-                                      () => onConnect(isFileTransfer: true)
-                                    ),
-                                    (
-                                      'View camera',
-                                      () => onConnect(isViewCamera: true)
-                                    ),
-                                    (
-                                      '${translate('Terminal')} (beta)',
-                                      () => onConnect(isTerminal: true)
-                                    ),
-                                  ]
-                                      .map((e) => MenuEntryButton<String>(
-                                            childBuilder: (TextStyle? style) =>
-                                                Text(
-                                              translate(e.$1),
-                                              style: style,
-                                            ),
-                                            proc: () => e.$2(),
-                                            padding: EdgeInsets.symmetric(
-                                                horizontal:
-                                                    kDesktopMenuPadding.left),
-                                            dismissOnClicked: true,
-                                          ))
-                                      .map((e) => e.build(
-                                          context,
-                                          const MenuConfig(
-                                              commonColor: CustomPopupMenuTheme
-                                                  .commonColor,
-                                              height:
-                                                  CustomPopupMenuTheme.height,
-                                              dividerHeight:
-                                                  CustomPopupMenuTheme
-                                                      .dividerHeight)))
-                                      .expand((i) => i)
-                                      .toList(),
-                                  elevation: 8,
-                                )
-                                    .then((_) {
-                                  _menuOpen.value = false;
-                                });
-                              },
-                            ));
-                      },
-                    ),
+                    child: Obx(() {
+                      var offset = Offset(0, 0);
+                      return InkWell(
+                        child: _menuOpen.value
+                            ? Transform.rotate(
+                                angle: pi,
+                                child: Icon(IconFont.more, size: 14),
+                              )
+                            : Icon(IconFont.more, size: 14),
+                        onTapDown: (e) {
+                          offset = e.globalPosition;
+                        },
+                        onTap: () async {
+                          _menuOpen.value = true;
+                          final x = offset.dx;
+                          final y = offset.dy;
+                          await mod_menu
+                              .showMenu(
+                            context: context,
+                            position: RelativeRect.fromLTRB(x, y, x, y),
+                            items: [
+                              (
+                                'Transfer file',
+                                () => onConnect(isFileTransfer: true)
+                              ),
+                              (
+                                'View camera',
+                                () => onConnect(isViewCamera: true)
+                              ),
+                            ]
+                                .map((e) => MenuEntryButton<String>(
+                                      childBuilder: (TextStyle? style) => Text(
+                                        translate(e.$1),
+                                        style: style,
+                                      ),
+                                      proc: () => e.$2(),
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: kDesktopMenuPadding.left),
+                                      dismissOnClicked: true,
+                                    ))
+                                .map((e) => e.build(
+                                    context,
+                                    const MenuConfig(
+                                        commonColor:
+                                            CustomPopupMenuTheme.commonColor,
+                                        height: CustomPopupMenuTheme.height,
+                                        dividerHeight: CustomPopupMenuTheme
+                                            .dividerHeight)))
+                                .expand((i) => i)
+                                .toList(),
+                            elevation: 8,
+                          )
+                              .then((_) {
+                            _menuOpen.value = false;
+                          });
+                        },
+                      );
+                    }),
                   ),
                 ),
               ]),

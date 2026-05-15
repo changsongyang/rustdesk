@@ -122,9 +122,9 @@ class MainService : Service() {
                     val authorized = jsonObject["authorized"] as Boolean
                     val isFileTransfer = jsonObject["is_file_transfer"] as Boolean
                     val type = if (isFileTransfer) {
-                        translate("Transfer file")
+                        translate("File Connection")
                     } else {
-                        translate("Share screen")
+                        translate("Screen Connection")
                     }
                     if (authorized) {
                         if (!isFileTransfer && !isStart) {
@@ -423,16 +423,11 @@ class MainService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // 检查录音权限
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
-                    Log.d(logTag, "createAudioRecorder fail")
-                } else {
-                    Log.d(logTag, "audio recorder start")
-                    audioRecordHandle.startAudioRecorder()
-                }
+            if (!audioRecordHandle.createAudioRecorder(false, mediaProjection)) {
+                Log.d(logTag, "createAudioRecorder fail")
             } else {
-                Log.d(logTag, "Record audio permission not granted, skipping audio capture")
+                Log.d(logTag, "audio recorder start")
+                audioRecordHandle.startAudioRecorder()
             }
         }
         checkMediaPermission()

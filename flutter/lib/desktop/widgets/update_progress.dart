@@ -7,10 +7,7 @@ import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-final _isExtracting = false.obs;
-
 void handleUpdate(String releasePageUrl) {
-  _isExtracting.value = false;
   String downloadUrl = releasePageUrl.replaceAll('tag', 'download');
   String version = downloadUrl.substring(downloadUrl.lastIndexOf('/') + 1);
   final String downloadFile =
@@ -28,15 +25,13 @@ void handleUpdate(String releasePageUrl) {
   gFFI.dialogManager.dismissAll();
   gFFI.dialogManager.show((setState, close, context) {
     return CustomAlertDialog(
-        title: Obx(() => Text(translate(_isExtracting.isTrue
-            ? 'Preparing for installation ...'
-            : 'Downloading {$appName}'))),
+        title: Text(translate('Downloading {$appName}')),
         content:
             UpdateProgress(releasePageUrl, downloadUrl, downloadId, onCanceled)
                 .marginSymmetric(horizontal: 8)
                 .paddingOnly(top: 12),
         actions: [
-          if (_isExtracting.isFalse) dialogButton(translate('Cancel'), onPressed: () async {
+          dialogButton(translate('Cancel'), onPressed: () async {
             onCanceled.value();
             await bind.mainSetCommon(
                 key: 'cancel-downloader', value: downloadId.value);
@@ -76,7 +71,6 @@ class UpdateProgressState extends State<UpdateProgress> {
   int _downloadedSize = 0;
   int _getDataFailedCount = 0;
   final String _eventKeyDownloadNewVersion = 'download-new-version';
-  final String _eventKeyExtractUpdateDmg = 'extract-update-dmg';
 
   @override
   void initState() {
@@ -88,11 +82,6 @@ class UpdateProgressState extends State<UpdateProgress> {
         _eventKeyDownloadNewVersion, handleDownloadNewVersion,
         replace: true);
     bind.mainSetCommon(key: 'download-new-version', value: widget.downloadUrl);
-    if (isMacOS) {
-      platformFFI.registerEventHandler(_eventKeyExtractUpdateDmg,
-          _eventKeyExtractUpdateDmg, handleExtractUpdateDmg,
-          replace: true);
-    }
   }
 
   @override
@@ -100,10 +89,6 @@ class UpdateProgressState extends State<UpdateProgress> {
     cancelQueryTimer();
     platformFFI.unregisterEventHandler(
         _eventKeyDownloadNewVersion, _eventKeyDownloadNewVersion);
-    if (isMacOS) {
-      platformFFI.unregisterEventHandler(
-          _eventKeyExtractUpdateDmg, _eventKeyExtractUpdateDmg);
-    }
     super.dispose();
   }
 
@@ -128,13 +113,10 @@ class UpdateProgressState extends State<UpdateProgress> {
     }
   }
 
-  // `isExtractDmg` is true when handling extract-update-dmg event.
-  // It's a rare case that the dmg file is corrupted and cannot be extracted.
-  void _onError(String error, {bool isExtractDmg = false}) {
+  void _onError(String error) {
     cancelQueryTimer();
 
-    debugPrint(
-        '${isExtractDmg ? "Extract" : "Download"} new version error: $error');
+    debugPrint('Download new version error: $error');
     final msgBoxType = 'custom-nocancel-nook-hasclose';
     final msgBoxTitle = 'Error';
     final msgBoxText = 'download-new-version-failed-tip';
@@ -156,7 +138,7 @@ class UpdateProgressState extends State<UpdateProgress> {
 
     final List<Widget> buttons = [
       dialogButton('Download', onPressed: jumplink),
-      if (!isExtractDmg) dialogButton('Retry', onPressed: retry),
+      dialogButton('Retry', onPressed: retry),
       dialogButton('Close', onPressed: close),
     ];
     dialogManager.dismissAll();
@@ -212,13 +194,19 @@ class UpdateProgressState extends State<UpdateProgress> {
           _onError('The download file size is 0.');
         } else {
           setState(() {});
-          if (isMacOS) {
-            bind.mainSetCommon(
-                key: 'extract-update-dmg', value: widget.downloadUrl);
-            _isExtracting.value = true;
-          } else {
-            updateMsgBox();
-          }
+          msgBox(
+            gFFI.sessionId,
+            'custom-nocancel',
+            '{$appName} Update',
+            '{$appName}-to-update-tip',
+            '',
+            gFFI.dialogManager,
+            onSubmit: () {
+              debugPrint('Downloaded, update to new version now');
+              bind.mainSetCommon(key: 'update-me', value: widget.downloadUrl);
+            },
+            submitTimeout: 5,
+          );
         }
       } else {
         setState(() {});
@@ -226,38 +214,17 @@ class UpdateProgressState extends State<UpdateProgress> {
     }
   }
 
-  void updateMsgBox() {
-    msgBox(
-      gFFI.sessionId,
-      'custom-nocancel',
-      '{$appName} Update',
-      '{$appName}-to-update-tip',
-      '',
-      gFFI.dialogManager,
-      onSubmit: () {
-        debugPrint('Downloaded, update to new version now');
-        bind.mainSetCommon(key: 'update-me', value: widget.downloadUrl);
-      },
-      submitTimeout: 5,
-    );
-  }
-
-  Future<void> handleExtractUpdateDmg(Map<String, dynamic> evt) async {
-    _isExtracting.value = false;
-    if (evt.containsKey('err') && (evt['err'] as String).isNotEmpty) {
-      _onError(evt['err'] as String, isExtractDmg: true);
-    } else {
-      updateMsgBox();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    getValue() => _totalSize == null
+    return onDownloading(context);
+  }
+
+  Widget onDownloading(BuildContext context) {
+    final value = _totalSize == null
         ? 0.0
         : (_totalSize == 0 ? 1.0 : _downloadedSize / _totalSize!);
     return LinearProgressIndicator(
-      value: _isExtracting.isTrue ? null : getValue(),
+      value: value,
       minHeight: 20,
       borderRadius: BorderRadius.circular(5),
       backgroundColor: Colors.grey[300],

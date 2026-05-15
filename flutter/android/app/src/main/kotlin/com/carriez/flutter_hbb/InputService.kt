@@ -70,7 +70,7 @@ class InputService : AccessibilityService() {
 
     private val logTag = "input service"
     private var leftIsDown = false
-    private var touchPath = Path()
+    private val touchPath = Path()
     private var stroke: GestureDescription.StrokeDescription? = null
     private var lastTouchGestureStartTime = 0L
     private var mouseX = 0
@@ -278,11 +278,7 @@ class InputService : AccessibilityService() {
     }
 
     private fun startGesture(x: Int, y: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            touchPath.reset()
-        } else {
-            touchPath = Path()
-        }
+        touchPath.reset()
         touchPath.moveTo(x.toFloat(), y.toFloat())
         lastTouchGestureStartTime = System.currentTimeMillis()
         lastX = x
@@ -298,31 +294,14 @@ class InputService : AccessibilityService() {
         }
         try {
             if (stroke == null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    stroke = GestureDescription.StrokeDescription(
-                        touchPath,
-                        0,
-                        duration,
-                        willContinue
-                    )
-                } else {
-                    stroke = GestureDescription.StrokeDescription(
-                        touchPath,
-                        0,
-                        duration
-                    )
-                }
+                stroke = GestureDescription.StrokeDescription(
+                    touchPath,
+                    0,
+                    duration,
+                    willContinue
+                )
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    stroke = stroke?.continueStroke(touchPath, 0, duration, willContinue)
-                } else {
-                    stroke = null
-                    stroke = GestureDescription.StrokeDescription(
-                        touchPath,
-                        0,
-                        duration
-                    )
-                }
+                stroke = stroke?.continueStroke(touchPath, 0, duration, willContinue)
             }
             stroke?.let {
                 val builder = GestureDescription.Builder()
@@ -337,49 +316,19 @@ class InputService : AccessibilityService() {
 
     @RequiresApi(Build.VERSION_CODES.N)
     private fun continueGesture(x: Int, y: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            doDispatchGesture(x, y, true)
-            touchPath.reset()
-            touchPath.moveTo(x.toFloat(), y.toFloat())
-            lastTouchGestureStartTime = System.currentTimeMillis()
-            lastX = x
-            lastY = y
-        } else {
-            touchPath.lineTo(x.toFloat(), y.toFloat())
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.N)
-    private fun endGestureBelowO(x: Int, y: Int) {
-        try {
-            touchPath.lineTo(x.toFloat(), y.toFloat())
-            var duration = System.currentTimeMillis() - lastTouchGestureStartTime
-            if (duration <= 0) {
-                duration = 1
-            }
-            val stroke = GestureDescription.StrokeDescription(
-                touchPath,
-                0,
-                duration
-            )
-            val builder = GestureDescription.Builder()
-            builder.addStroke(stroke)
-            Log.d(logTag, "end gesture x:$x y:$y time:$duration")
-            dispatchGesture(builder.build(), null, null)
-        } catch (e: Exception) {
-            Log.e(logTag, "endGesture error:$e")
-        }
+        doDispatchGesture(x, y, true)
+        touchPath.reset()
+        touchPath.moveTo(x.toFloat(), y.toFloat())
+        lastTouchGestureStartTime = System.currentTimeMillis()
+        lastX = x
+        lastY = y
     }
 
     @RequiresApi(Build.VERSION_CODES.N)
     private fun endGesture(x: Int, y: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            doDispatchGesture(x, y, false)
-            touchPath.reset()
-            stroke = null
-        } else {
-            endGestureBelowO(x, y)
-        }
+        doDispatchGesture(x, y, false)
+        touchPath.reset()
+        stroke = null
     }
 
     @RequiresApi(Build.VERSION_CODES.N)
@@ -722,7 +671,6 @@ class InputService : AccessibilityService() {
         } else {
             info.flags = FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         }
-        info.packageNames = null // 不限制包名，保持功能完整性
         setServiceInfo(info)
         fakeEditTextForTextStateCalculation = EditText(this)
         // Size here doesn't matter, we won't show this view.

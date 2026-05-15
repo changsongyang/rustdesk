@@ -18,8 +18,7 @@ function isEnterKey(evt) {
 
 function getScaleFactor() {
     if (!is_win) return 1;
-    var s = self.toPixels(10000dip) / 10000.;
-    return s < 0.000001 ? 1 : s;
+    return self.toPixels(10000dip) / 10000.;
 }
 var scaleFactor = getScaleFactor();
 view << event resolutionchange {

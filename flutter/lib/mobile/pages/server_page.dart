@@ -17,7 +17,7 @@ import 'home_page.dart';
 
 class ServerPage extends StatefulWidget implements PageShape {
   @override
-  final title = translate("Share screen");
+  final title = translate("Share Screen");
 
   @override
   final icon = const Icon(Icons.mobile_screen_share);
@@ -56,18 +56,13 @@ class _DropDownAction extends StatelessWidget {
           final verificationMethod = gFFI.serverModel.verificationMethod;
           final showPasswordOption = approveMode != 'click';
           final isApproveModeFixed = isOptionFixed(kOptionApproveMode);
-          final isNumericOneTimePasswordFixed =
-              isOptionFixed(kOptionAllowNumericOneTimePassword);
-          final isAllowNumericOneTimePassword =
-              gFFI.serverModel.allowNumericOneTimePassword;
           return [
-            if (!isChangeIdDisabled())
-              PopupMenuItem(
-                enabled: gFFI.serverModel.connectStatus > 0,
-                value: "changeID",
-                child: Text(translate("Change ID")),
-              ),
-            if (!isChangeIdDisabled()) const PopupMenuDivider(),
+            PopupMenuItem(
+              enabled: gFFI.serverModel.connectStatus > 0,
+              value: "changeID",
+              child: Text(translate("Change ID")),
+            ),
+            const PopupMenuDivider(),
             PopupMenuItem(
               value: 'AcceptSessionsViaPassword',
               child: listTile(
@@ -88,8 +83,7 @@ class _DropDownAction extends StatelessWidget {
             ),
             if (showPasswordOption) const PopupMenuDivider(),
             if (showPasswordOption &&
-                verificationMethod != kUseTemporaryPassword &&
-                !isChangePermanentPasswordDisabled())
+                verificationMethod != kUseTemporaryPassword)
               PopupMenuItem(
                 value: "setPermanentPassword",
                 child: Text(translate("Set permanent password")),
@@ -99,14 +93,6 @@ class _DropDownAction extends StatelessWidget {
               PopupMenuItem(
                 value: "setTemporaryPasswordLength",
                 child: Text(translate("One-time password length")),
-              ),
-            if (showPasswordOption &&
-                verificationMethod != kUsePermanentPassword)
-              PopupMenuItem(
-                value: "allowNumericOneTimePassword",
-                child: listTile(translate("Numeric one-time password"),
-                    isAllowNumericOneTimePassword),
-                enabled: !isNumericOneTimePasswordFixed,
               ),
             if (showPasswordOption) const PopupMenuDivider(),
             if (showPasswordOption)
@@ -138,9 +124,6 @@ class _DropDownAction extends StatelessWidget {
             setPasswordDialog();
           } else if (value == "setTemporaryPasswordLength") {
             setTemporaryPasswordLengthDialog(gFFI.dialogManager);
-          } else if (value == "allowNumericOneTimePassword") {
-            gFFI.serverModel.switchAllowNumericOneTimePassword();
-            gFFI.serverModel.updatePasswordModel();
           } else if (value == kUsePermanentPassword ||
               value == kUseTemporaryPassword ||
               value == kUseBothPasswords) {
@@ -150,12 +133,7 @@ class _DropDownAction extends StatelessWidget {
             }
 
             if (value == kUsePermanentPassword &&
-                (await bind.mainGetCommon(key: "permanent-password-set")) !=
-                    "true") {
-              if (isChangePermanentPasswordDisabled()) {
-                callback();
-                return;
-              }
+                (await bind.mainGetPermanentPassword()).isEmpty) {
               setPasswordDialog(notEmptyCallback: callback);
             } else {
               callback();
@@ -583,13 +561,10 @@ class _PermissionCheckerState extends State<PermissionChecker> {
   Widget build(BuildContext context) {
     final serverModel = Provider.of<ServerModel>(context);
     final hasAudioPermission = androidVersion >= 30;
-    final hideStopService =
-        isAndroid &&
-            bind.mainGetBuildinOption(key: kOptionHideStopService) == 'Y';
     return PaddingCard(
         title: translate("Permissions"),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          serverModel.mediaOk && !hideStopService
+          serverModel.mediaOk
               ? ElevatedButton.icon(
                       style: ButtonStyle(
                           backgroundColor:
@@ -599,15 +574,14 @@ class _PermissionCheckerState extends State<PermissionChecker> {
                       label: Text(translate("Stop service")))
                   .marginOnly(bottom: 8)
               : SizedBox.shrink(),
-          if (!hideStopService || !serverModel.mediaOk)
-            PermissionRow(
-                translate("Screen Capture"),
-                serverModel.mediaOk,
-                !serverModel.mediaOk &&
-                        gFFI.userModel.userName.value.isEmpty &&
-                        bind.mainGetLocalOption(key: "show-scam-warning") != "N"
-                    ? () => showScamWarning(context, serverModel)
-                    : serverModel.toggleService),
+          PermissionRow(
+              translate("Screen Capture"),
+              serverModel.mediaOk,
+              !serverModel.mediaOk &&
+                      gFFI.userModel.userName.value.isEmpty &&
+                      bind.mainGetLocalOption(key: "show-scam-warning") != "N"
+                  ? () => showScamWarning(context, serverModel)
+                  : serverModel.toggleService),
           PermissionRow(translate("Input Control"), serverModel.inputOk,
               serverModel.toggleInput),
           PermissionRow(translate("Transfer file"), serverModel.fileOk,
@@ -659,8 +633,9 @@ class ConnectionManager extends StatelessWidget {
     return Column(
         children: serverModel.clients
             .map((client) => PaddingCard(
-                title: translate(
-                    client.isFileTransfer ? "Transfer file" : "Share screen"),
+                title: translate(client.isFileTransfer
+                    ? "File Connection"
+                    : "Screen Connection"),
                 titleIcon: client.isFileTransfer
                     ? Icon(Icons.folder_outlined)
                     : Icon(Icons.mobile_screen_share),
@@ -846,7 +821,13 @@ class ClientInfo extends StatelessWidget {
                   flex: -1,
                   child: Padding(
                       padding: const EdgeInsets.only(right: 12),
-                      child: _buildAvatar(context))),
+                      child: CircleAvatar(
+                          backgroundColor: str2color(
+                              client.name,
+                              Theme.of(context).brightness == Brightness.light
+                                  ? 255
+                                  : 150),
+                          child: Text(client.name[0])))),
               Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -858,20 +839,6 @@ class ClientInfo extends StatelessWidget {
             ],
           ),
         ]));
-  }
-
-  Widget _buildAvatar(BuildContext context) {
-    final fallback = CircleAvatar(
-      backgroundColor: str2color(client.name,
-          Theme.of(context).brightness == Brightness.light ? 255 : 150),
-      child: Text(client.name.isNotEmpty ? client.name[0] : '?'),
-    );
-    return buildAvatarWidget(
-          avatar: client.avatar,
-          size: 40,
-          fallback: fallback,
-        ) ??
-        fallback;
   }
 }
 

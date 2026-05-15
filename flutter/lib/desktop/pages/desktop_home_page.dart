@@ -18,7 +18,6 @@ import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/models/state_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
 import 'package:flutter_hbb/utils/multi_window_manager.dart';
-import 'package:flutter_hbb/utils/platform_channel.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -435,7 +434,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         !isCardClosed &&
         bind.mainUriPrefixSync().contains('rustdesk')) {
       final isToUpdate = (isWindows || isMacOS) && bind.mainIsInstalled();
-      String btnText = isToUpdate ? 'Update' : 'Download';
+      String btnText = isToUpdate ? 'Click to update' : 'Click to download';
       GestureTapCallback onPressed = () async {
         final Uri url = Uri.parse('https://rustdesk.com/download');
         await launchUrl(url);
@@ -450,11 +449,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           "${translate("new-version-of-{${bind.mainGetAppNameSync()}}-tip")} (${bind.mainGetNewVersion()}).",
           btnText,
           onPressed,
-          closeButton: true,
-          help: isToUpdate ? 'Changelog' : null,
-          link: isToUpdate
-              ? 'https://github.com/rustdesk/rustdesk/releases/tag/${bind.mainGetNewVersion()}'
-              : null);
+          closeButton: true);
     }
     if (systemError.isNotEmpty) {
       return buildInstallCard("", systemError, "", () {});
@@ -765,23 +760,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           'scaleFactor': screen.scaleFactor,
         };
 
-    bool isChattyMethod(String methodName) {
-      switch (methodName) {
-        case kWindowBumpMouse: return true;
-      }
-
-      return false;
-    }
-
     rustDeskWinManager.setMethodHandler((call, fromWindowId) async {
-      if (!isChattyMethod(call.method)) {
-        debugPrint(
+      debugPrint(
           "[Main] call ${call.method} with args ${call.arguments} from window $fromWindowId");
-      }
       if (call.method == kWindowMainWindowOnTop) {
         windowOnTop(null);
-      } else if (call.method == kWindowRefreshCurrentUser) {
-        gFFI.userModel.refreshCurrentUser();
       } else if (call.method == kWindowGetWindowInfo) {
         final screen = (await window_size.getWindowInfo()).screen;
         if (screen == null) {
@@ -803,17 +786,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           call.arguments['id'],
           isFileTransfer: call.arguments['isFileTransfer'],
           isViewCamera: call.arguments['isViewCamera'],
-          isTerminal: call.arguments['isTerminal'],
           isTcpTunneling: call.arguments['isTcpTunneling'],
           isRDP: call.arguments['isRDP'],
           password: call.arguments['password'],
           forceRelay: call.arguments['forceRelay'],
           connToken: call.arguments['connToken'],
         );
-      } else if (call.method == kWindowBumpMouse) {
-        return RdPlatformChannel.instance.bumpMouse(
-          dx: call.arguments['dx'],
-          dy: call.arguments['dy']);
       } else if (call.method == kWindowEventMoveTabToNewWindow) {
         final args = call.arguments.split(',');
         int? windowId;
@@ -908,17 +886,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
 }
 
 void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
-  final p0 = TextEditingController(text: "");
-  final p1 = TextEditingController(text: "");
+  final pw = await bind.mainGetPermanentPassword();
+  final p0 = TextEditingController(text: pw);
+  final p1 = TextEditingController(text: pw);
   var errMsg0 = "";
   var errMsg1 = "";
-  final localPasswordSet =
-      (await bind.mainGetCommon(key: "local-permanent-password-set")) == "true";
-  final permanentPasswordSet =
-      (await bind.mainGetCommon(key: "permanent-password-set")) == "true";
-  final presetPassword = permanentPasswordSet && !localPasswordSet;
-  var canSubmit = false;
-  final RxString rxPass = "".obs;
+  final RxString rxPass = pw.trim().obs;
   final rules = [
     DigitValidationRule(),
     UppercaseValidationRule(),
@@ -927,21 +900,9 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
     MinCharactersValidationRule(8),
   ];
   final maxLength = bind.mainMaxEncryptLen();
-  final statusTip = localPasswordSet
-      ? translate('password-hidden-tip')
-      : (presetPassword ? translate('preset-password-in-use-tip') : '');
-  final showStatusTipOnMobile =
-      statusTip.isNotEmpty && !isDesktop && !isWebDesktop;
 
   gFFI.dialogManager.show((setState, close, context) {
-    updateCanSubmit() {
-      canSubmit = p0.text.trim().isNotEmpty || p1.text.trim().isNotEmpty;
-    }
-
-    submit() async {
-      if (!canSubmit) {
-        return;
-      }
+    submit() {
       setState(() {
         errMsg0 = "";
         errMsg1 = "";
@@ -964,13 +925,7 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
         });
         return;
       }
-      final ok = await bind.mainSetPermanentPasswordWithResult(password: pass);
-      if (!ok) {
-        setState(() {
-          errMsg0 = '${translate('Prompt')}: ${translate("Failed")}';
-        });
-        return;
-      }
+      bind.mainSetPermanentPassword(password: pass);
       if (pass.isNotEmpty) {
         notEmptyCallback?.call();
       }
@@ -978,20 +933,14 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
     }
 
     return CustomAlertDialog(
-      title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.key, color: MyTheme.accent),
-          Text(translate("Set Password")).paddingOnly(left: 10),
-        ],
-      ),
+      title: Text(translate("Set Password")),
       content: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 500),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              height: showStatusTipOnMobile ? 0.0 : 6.0,
+            const SizedBox(
+              height: 8.0,
             ),
             Row(
               children: [
@@ -1007,7 +956,6 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
                       rxPass.value = value.trim();
                       setState(() {
                         errMsg0 = '';
-                        updateCanSubmit();
                       });
                     },
                     maxLength: maxLength,
@@ -1019,9 +967,9 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
               children: [
                 Expanded(child: PasswordStrengthIndicator(password: rxPass)),
               ],
-            ).marginOnly(top: 2, bottom: showStatusTipOnMobile ? 2 : 8),
-            SizedBox(
-              height: showStatusTipOnMobile ? 0.0 : 8.0,
+            ).marginSymmetric(vertical: 8),
+            const SizedBox(
+              height: 8.0,
             ),
             Row(
               children: [
@@ -1035,7 +983,6 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
                     onChanged: (value) {
                       setState(() {
                         errMsg1 = '';
-                        updateCanSubmit();
                       });
                     },
                     maxLength: maxLength,
@@ -1043,23 +990,11 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
                 ),
               ],
             ),
-            if (statusTip.isNotEmpty)
-              Row(
-                children: [
-                  Icon(Icons.info, color: Colors.amber, size: 18)
-                      .marginOnly(right: 6),
-                  Expanded(
-                      child: Text(
-                    statusTip,
-                    style: const TextStyle(fontSize: 13, height: 1.1),
-                  ))
-                ],
-              ).marginOnly(top: 6, bottom: 2),
-            SizedBox(
-              height: showStatusTipOnMobile ? 0.0 : 8.0,
+            const SizedBox(
+              height: 8.0,
             ),
             Obx(() => Wrap(
-                  runSpacing: showStatusTipOnMobile ? 2.0 : 8.0,
+                  runSpacing: 8,
                   spacing: 4,
                   children: rules.map((e) {
                     var checked = e.validate(rxPass.value.trim());
@@ -1079,67 +1014,11 @@ void setPasswordDialog({VoidCallback? notEmptyCallback}) async {
           ],
         ),
       ),
-      actions: (() {
-        final cancelButton = dialogButton(
-          "Cancel",
-          icon: Icon(Icons.close_rounded),
-          onPressed: close,
-          isOutline: true,
-        );
-        final removeButton = dialogButton(
-          "Remove",
-          icon: Icon(Icons.delete_outline_rounded),
-          onPressed: () async {
-            setState(() {
-              errMsg0 = "";
-              errMsg1 = "";
-            });
-            final ok =
-                await bind.mainSetPermanentPasswordWithResult(password: "");
-            if (!ok) {
-              setState(() {
-                errMsg0 = '${translate('Prompt')}: ${translate("Failed")}';
-              });
-              return;
-            }
-            close();
-          },
-          buttonStyle: ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(Colors.red)),
-        );
-        final okButton = dialogButton(
-          "OK",
-          icon: Icon(Icons.done_rounded),
-          onPressed: canSubmit ? submit : null,
-        );
-        if (!isDesktop && !isWebDesktop && localPasswordSet) {
-          return [
-            Align(
-              alignment: Alignment.centerRight,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    cancelButton,
-                    const SizedBox(width: 4),
-                    removeButton,
-                    const SizedBox(width: 4),
-                    okButton,
-                  ],
-                ),
-              ),
-            ),
-          ];
-        }
-        return [
-          cancelButton,
-          if (localPasswordSet) removeButton,
-          okButton,
-        ];
-      })(),
-      onSubmit: canSubmit ? submit : null,
+      actions: [
+        dialogButton("Cancel", onPressed: close, isOutline: true),
+        dialogButton("OK", onPressed: submit),
+      ],
+      onSubmit: submit,
       onCancel: close,
     );
   });
