@@ -5,6 +5,14 @@ MODE=${MODE:=release}
 STRIP_LIBS=${STRIP_LIBS:=true}
 OBFUSCATE=${OBFUSCATE:=true}
 
+# Build optimization configuration
+export GRADLE_OPTS="${GRADLE_OPTS:--Xmx4G -Dorg.gradle.caching=true -Dorg.gradle.parallel=true -Dorg.gradle.jvmargs=-Xmx4G}"
+export CARGO_PROFILE_RELEASE_OPT_LEVEL=s
+export CARGO_INCREMENTAL=1
+
+# Track build time
+start_time=$(date +%s)
+
 if [[ "$MODE" != "release" && "$MODE" != "debug" && "$MODE" != "profile" ]]; then
   echo "ERROR: Invalid MODE '$MODE'. Must be: release, debug, or profile"
   exit 1
@@ -16,7 +24,13 @@ echo "Strip Libraries: $STRIP_LIBS"
 echo "Obfuscate: $OBFUSCATE"
 echo ""
 
+# NDK version check
 if [[ -n "${ANDROID_NDK_HOME:-}" ]]; then
+  if [[ -f "$ANDROID_NDK_HOME/source.properties" ]]; then
+    NDK_VERSION=$(grep Pkg.Revision "$ANDROID_NDK_HOME/source.properties" | cut -d'=' -f2)
+    echo "NDK Version: $NDK_VERSION"
+  fi
+  
   HOST_ARCH=$(uname -m)
   case "$HOST_ARCH" in
     x86_64)  HOST_TRIPLET="linux-x86_64" ;;
@@ -63,6 +77,15 @@ fi
 
 echo ""
 echo "=== Build completed ==="
+
+# Calculate build time
+end_time=$(date +%s)
+build_duration=$((end_time - start_time))
+minutes=$((build_duration / 60))
+seconds=$((build_duration % 60))
+echo "Build Time: ${minutes}m ${seconds}s"
+
+echo ""
 echo "APK files:"
 find android/app/build/outputs/flutter-apk -name "*.apk" 2>/dev/null || true
 echo ""
