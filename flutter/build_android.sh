@@ -17,7 +17,13 @@ echo "Obfuscate: $OBFUSCATE"
 echo ""
 
 if [[ -n "${ANDROID_NDK_HOME:-}" ]]; then
-  STRIP="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+  HOST_ARCH=$(uname -m)
+  case "$HOST_ARCH" in
+    x86_64)  HOST_TRIPLET="linux-x86_64" ;;
+    aarch64) HOST_TRIPLET="linux-aarch64" ;;
+    *)       HOST_TRIPLET="linux-x86_64" ;;
+  esac
+  STRIP="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOST_TRIPLET/bin/llvm-strip"
   if [[ -x "$STRIP" ]] && [[ "$STRIP_LIBS" == "true" ]]; then
     echo "=== Stripping native libraries ==="
     for arch_dir in arm64-v8a armeabi-v7a x86_64 x86; do
@@ -38,17 +44,22 @@ DEBUG_INFO_DIR="split-debug-info"
 if [[ "$OBFUSCATE" == "true" ]]; then
   rm -rf "$DEBUG_INFO_DIR"
   mkdir -p "$DEBUG_INFO_DIR"
-  OBFUSCATE_FLAGS="--obfuscate --split-debug-info ./$DEBUG_INFO_DIR"
-else
-  OBFUSCATE_FLAGS=""
 fi
 
 echo "=== Building APK (split-per-abi) ==="
-flutter build apk --split-per-abi --target-platform android-arm64,android-arm,android-x64 --"$MODE" $OBFUSCATE_FLAGS
+if [[ "$OBFUSCATE" == "true" ]]; then
+  flutter build apk --split-per-abi --target-platform android-arm64,android-arm,android-x64 --"$MODE" --obfuscate --split-debug-info "./$DEBUG_INFO_DIR"
+else
+  flutter build apk --split-per-abi --target-platform android-arm64,android-arm,android-x64 --"$MODE"
+fi
 
 echo ""
 echo "=== Building AppBundle ==="
-flutter build appbundle --target-platform android-arm64,android-arm --"$MODE" $OBFUSCATE_FLAGS
+if [[ "$OBFUSCATE" == "true" ]]; then
+  flutter build appbundle --target-platform android-arm64,android-arm --"$MODE" --obfuscate --split-debug-info "./$DEBUG_INFO_DIR"
+else
+  flutter build appbundle --target-platform android-arm64,android-arm --"$MODE"
+fi
 
 echo ""
 echo "=== Build completed ==="

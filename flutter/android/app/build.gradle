@@ -108,7 +108,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -132,6 +136,6 @@ dependencies {
     implementation 'androidx.media:media:1.6.0'
     implementation 'com.github.getActivity:XXPermissions:18.5'
     implementation 'com.caverock:androidsvg-aar:1.4'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.10"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.21"
     implementation 'rustls:rustls-platform-verifier:0.1.1'
 }
