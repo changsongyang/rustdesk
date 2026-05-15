@@ -1027,8 +1027,12 @@ jobs:
               pushd flutter
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace ' "$EXTERNAL_PATH_GRADLE"; then
-                sed -i '/android {/a\    namespace "com.pinciat.external_path"' "$EXTERNAL_PATH_GRADLE"
+              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
+                echo 'android {
+    namespace "com.pinciat.external_path"
+}' > /tmp/namespace_block.txt
+                cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
+                mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm64 --split-per-abi
               mv build/app/outputs/flutter-apk/app-arm64-v8a-${{ matrix.job.reltype }}.apk ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
@@ -1041,8 +1045,12 @@ jobs:
               pushd flutter
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace ' "$EXTERNAL_PATH_GRADLE"; then
-                sed -i '/android {/a\    namespace "com.pinciat.external_path"' "$EXTERNAL_PATH_GRADLE"
+              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
+                echo 'android {
+    namespace "com.pinciat.external_path"
+}' > /tmp/namespace_block.txt
+                cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
+                mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-arm --split-per-abi
               mv build/app/outputs/flutter-apk/app-armeabi-v7a-${{ matrix.job.reltype }}.apk ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
@@ -1055,8 +1063,12 @@ jobs:
               pushd flutter
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace ' "$EXTERNAL_PATH_GRADLE"; then
-                sed -i '/android {/a\    namespace "com.pinciat.external_path"' "$EXTERNAL_PATH_GRADLE"
+              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
+                echo 'android {
+    namespace "com.pinciat.external_path"
+}' > /tmp/namespace_block.txt
+                cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
+                mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x64 --split-per-abi
               mv build/app/outputs/flutter-apk/app-x86_64-${{ matrix.job.reltype }}.apk ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
@@ -1069,8 +1081,12 @@ jobs:
               pushd flutter
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace ' "$EXTERNAL_PATH_GRADLE"; then
-                sed -i '/android {/a\    namespace "com.pinciat.external_path"' "$EXTERNAL_PATH_GRADLE"
+              if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
+                echo 'android {
+    namespace "com.pinciat.external_path"
+}' > /tmp/namespace_block.txt
+                cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
+                mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
               flutter build apk "--${{ matrix.job.reltype }}" --target-platform android-x86 --split-per-abi
               mv build/app/outputs/flutter-apk/app-x86-${{ matrix.job.reltype }}.apk ../rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.apk
@@ -1261,8 +1277,12 @@ jobs:
           pushd flutter
           # Patch external_path plugin for AGP 8.x namespace requirement
           EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-          if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace ' "$EXTERNAL_PATH_GRADLE"; then
-            sed -i '/android {/a\    namespace "com.pinciat.external_path"' "$EXTERNAL_PATH_GRADLE"
+          if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
+            echo 'android {
+    namespace "com.pinciat.external_path"
+}' > /tmp/namespace_block.txt
+            cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
+            mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
           fi
           flutter build apk "--${{ env.reltype }}" --target-platform android-arm64,android-arm,android-x64${{ env.x86_target }}
           popd
