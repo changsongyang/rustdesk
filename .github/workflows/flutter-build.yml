@@ -670,6 +670,16 @@ jobs:
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
+      - name: Remove Homebrew rustup-init shadow
+        shell: bash
+        run: |
+          if [ -L /usr/local/bin/rustup ] || [ -f /usr/local/bin/rustup ]; then
+            rm -f /usr/local/bin/rustup
+            echo "Removed Homebrew rustup-init from /usr/local/bin"
+          fi
+          which rustup
+          rustup -V
+
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.os }}
