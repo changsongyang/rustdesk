@@ -1928,15 +1928,18 @@ jobs:
 
       - name: Download Binary
         uses: actions/download-artifact@v4
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb
           path: .
 
       - name: Rename Binary
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           mv rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.deb appimage/rustdesk.deb
 
       - name: Build appimage package
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         shell: bash
         run: |
           # install libarchive-tools for bsdtar command used in AppImageBuilder.yml
@@ -2001,11 +2004,13 @@ jobs:
 
       - name: Download Binary
         uses: actions/download-artifact@v4
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         with:
           name: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb
           path: .
 
       - name: Rename Binary
+        if: ${{ env.UPLOAD_ARTIFACT == 'true' }}
         run: |
           mv rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.deb flatpak/rustdesk.deb
 
