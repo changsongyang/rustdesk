@@ -673,10 +673,12 @@ jobs:
       - name: Remove Homebrew rustup-init shadow
         shell: bash
         run: |
-          if [ -L /usr/local/bin/rustup ] || [ -f /usr/local/bin/rustup ]; then
-            rm -f /usr/local/bin/rustup
-            echo "Removed Homebrew rustup-init from /usr/local/bin"
-          fi
+          for rustup_path in /usr/local/bin/rustup /opt/homebrew/bin/rustup; do
+            if [ -L "$rustup_path" ] || [ -f "$rustup_path" ]; then
+              rm -f "$rustup_path"
+              echo "Removed Homebrew rustup-init from $rustup_path"
+            fi
+          done
           which rustup
           rustup -V
 
