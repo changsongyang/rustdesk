@@ -1008,6 +1008,11 @@ jobs:
           name: librustdesk.so.${{ matrix.job.target }}
           path: ./target/${{ matrix.job.target }}/release/liblibrustdesk.so
 
+      - name: Flutter pub get
+        shell: bash
+        working-directory: flutter
+        run: flutter pub get
+
       - name: Patch external_path plugin for AGP 8.x
         shell: bash
         run: |
@@ -1225,6 +1230,11 @@ jobs:
         with:
           name: librustdesk.so.i686-linux-android
           path: ./flutter/android/app/src/main/jniLibs/x86
+
+      - name: Flutter pub get
+        shell: bash
+        working-directory: flutter
+        run: flutter pub get
 
       - name: Patch external_path plugin for AGP 8.x
         shell: bash
