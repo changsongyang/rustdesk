@@ -1249,6 +1249,11 @@ jobs:
           name: librustdesk.so.i686-linux-android
           path: ./flutter/android/app/src/main/jniLibs/x86
 
+      - name: Flutter pub get
+        shell: bash
+        working-directory: flutter
+        run: flutter pub get
+
       - name: Patch plugins for AGP 8.x namespace
         shell: bash
         run: |
@@ -1267,11 +1272,6 @@ jobs:
           patch_namespace "$PUB_CACHE_DIR/device_info-2.0.3" "io.flutter.plugins.deviceinfo"
           patch_namespace "$PUB_CACHE_DIR/qr_code_scanner-1.0.1" "net.touchcapture.qr.flutterqr"
           patch_namespace "$PUB_CACHE_DIR/sqflite-2.2.0" "com.tekartik.sqflite"
-
-      - name: Flutter pub get
-        shell: bash
-        working-directory: flutter
-        run: flutter pub get
 
       - name: Build rustdesk
         shell: bash
