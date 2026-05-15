@@ -1028,9 +1028,7 @@ jobs:
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
               if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-                echo 'android {
-    namespace "com.pinciat.external_path"
-}' > /tmp/namespace_block.txt
+                printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
                 cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
                 mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
@@ -1046,9 +1044,7 @@ jobs:
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
               if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-                echo 'android {
-    namespace "com.pinciat.external_path"
-}' > /tmp/namespace_block.txt
+                printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
                 cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
                 mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
@@ -1064,9 +1060,7 @@ jobs:
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
               if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-                echo 'android {
-    namespace "com.pinciat.external_path"
-}' > /tmp/namespace_block.txt
+                printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
                 cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
                 mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
@@ -1082,9 +1076,7 @@ jobs:
               # Patch external_path plugin for AGP 8.x namespace requirement
               EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
               if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-                echo 'android {
-    namespace "com.pinciat.external_path"
-}' > /tmp/namespace_block.txt
+                printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
                 cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
                 mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
               fi
@@ -1278,9 +1270,7 @@ jobs:
           # Patch external_path plugin for AGP 8.x namespace requirement
           EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
           if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-            echo 'android {
-    namespace "com.pinciat.external_path"
-}' > /tmp/namespace_block.txt
+            printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
             cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
             mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
           fi
