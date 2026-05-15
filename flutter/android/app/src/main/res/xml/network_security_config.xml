@@ -3,12 +3,12 @@
     <!-- 基础配置：生产环境默认禁用明文流量，强制TLSv1.2+ -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
+            <!-- 仅信任系统 CA，移除用户 CA 以防止中间人攻击 -->
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
         <versions>
-            <version>TLSv1.2</version>
             <version>TLSv1.3</version>
+            <version>TLSv1.2</version>
         </versions>
     </base-config>
 
@@ -19,16 +19,12 @@
 
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
 
-        <hsts>
-            <domain includeSubdomains="true">ycsit.cn</domain>
-            <domain includeSubdomains="true">rustdesk.ycsit.cn</domain>
-        </hsts>
+        <hsts includeSubdomains="true" maxAge="31536000" />
     </domain-config>
 
-    <!-- 调试配置：仅在DEBUG模式下允许明文流量 -->
+    <!-- 调试配置：仅在DEBUG模式下允许用户 CA -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="system" />

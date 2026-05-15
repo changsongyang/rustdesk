@@ -28,8 +28,7 @@ class AudioRecordHandle(private var context: Context, private var isVideoStart: 
 
     @RequiresApi(Build.VERSION_CODES.M)
     fun createAudioRecorder(inVoiceCall: Boolean, mediaProjection: MediaProjection?): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            Log.d(logTag, "createAudioRecorder failed, SDK version < Android 9")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return false
         }
         if (ActivityCompat.checkSelfPermission(
@@ -49,14 +48,8 @@ class AudioRecordHandle(private var context: Context, private var isVideoStart: 
                 .setChannelMask(AUDIO_CHANNEL_MASK).build()
         );
         if (inVoiceCall) {
-            // 语音通话模式：使用VOICE_COMMUNICATION音频源，支持Android 9+
             builder.setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
         } else {
-            // 系统音频捕获模式：需要Android 10+
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                Log.d(logTag, "System audio capture requires Android 10+")
-                return false
-            }
             mediaProjection?.let {
                 var apcc = AudioPlaybackCaptureConfiguration.Builder(it)
                 .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
@@ -69,7 +62,13 @@ class AudioRecordHandle(private var context: Context, private var isVideoStart: 
                 return false
             }
         }
-        audioRecorder = builder.build()
+        val recorder = try {
+            builder.build()
+        } catch (e: Exception) {
+            Log.e(logTag, "createAudioRecorder failed", e)
+            return false
+        }
+        audioRecorder = recorder
         Log.d(logTag, "createAudioRecorder done,minBufferSize:$minBufferSize")
         return true
     }

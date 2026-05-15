@@ -5,6 +5,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 
@@ -58,6 +60,9 @@ class SecurityAuditor(private val context: Context) {
         CRITICAL
     }
     
+    /**
+     * 同步执行安全审计（适用于后台线程）
+     */
     fun performSecurityAudit(): SecurityAuditResult {
         Log.i(TAG, "开始安全审计...")
         
@@ -69,8 +74,8 @@ class SecurityAuditor(private val context: Context) {
         // 检查网络通信
         checkNetworkSecurity(issues)
         
-        // 检查数据存储
-        checkDataStorage(issues)
+        // 检查数据存储（同步版本）
+        checkDataStorageSync(issues)
         
         // 检查代码混淆
         checkCodeObfuscation(issues)
@@ -81,6 +86,39 @@ class SecurityAuditor(private val context: Context) {
         val isSecure = issues.none { it.severity == Severity.HIGH || it.severity == Severity.CRITICAL }
         
         Log.i(TAG, "安全审计完成，发现 ${issues.size} 个问题")
+        
+        return SecurityAuditResult(
+            isSecure = isSecure,
+            issues = issues
+        )
+    }
+    
+    /**
+     * 异步执行安全审计（推荐使用）
+     */
+    suspend fun performSecurityAuditAsync(): SecurityAuditResult {
+        Log.i(TAG, "开始异步安全审计...")
+        
+        val issues = mutableListOf<SecurityIssue>()
+        
+        // 检查权限使用
+        checkPermissionUsage(issues)
+        
+        // 检查网络通信
+        checkNetworkSecurity(issues)
+        
+        // 检查数据存储（异步版本，在IO线程执行）
+        checkDataStorageAsync(issues)
+        
+        // 检查代码混淆
+        checkCodeObfuscation(issues)
+        
+        // 检查SDK版本
+        checkSdkVersion(issues)
+        
+        val isSecure = issues.none { it.severity == Severity.HIGH || it.severity == Severity.CRITICAL }
+        
+        Log.i(TAG, "异步安全审计完成，发现 ${issues.size} 个问题")
         
         return SecurityAuditResult(
             isSecure = isSecure,
@@ -158,17 +196,54 @@ class SecurityAuditor(private val context: Context) {
         }
     }
     
-    private fun checkDataStorage(issues: MutableList<SecurityIssue>) {
-        Log.d(TAG, "检查数据存储安全...")
+    /**
+     * 同步版本的数据存储检查（适用于后台线程）
+     */
+    private fun checkDataStorageSync(issues: MutableList<SecurityIssue>) {
+        Log.d(TAG, "检查数据存储安全(同步)...")
         
         try {
             // 检查SharedPreferences
-            val prefsDir = File(context.filesDir.parent, "shared_prefs")
-            if (prefsDir.exists() && prefsDir.isDirectory) {
-                val prefsFiles = prefsDir.listFiles()
-                prefsFiles?.forEach { file ->
-                    if (file.name.endsWith(".xml")) {
-                        val content = file.readText()
+            checkSharedPreferencesSync(issues)
+            
+            // 检查内部存储
+            checkInternalStorageSync(issues)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "数据存储检查失败: ${e.message}")
+        }
+    }
+    
+    /**
+     * 异步版本的数据存储检查（推荐使用）
+     */
+    private suspend fun checkDataStorageAsync(issues: MutableList<SecurityIssue>) {
+        Log.d(TAG, "检查数据存储安全(异步)...")
+        
+        try {
+            // 在IO线程执行文件操作
+            withContext(Dispatchers.IO) {
+                // 检查SharedPreferences
+                checkSharedPreferencesSync(issues)
+                
+                // 检查内部存储
+                checkInternalStorageSync(issues)
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "数据存储检查失败: ${e.message}")
+        }
+    }
+    
+    private fun checkSharedPreferencesSync(issues: MutableList<SecurityIssue>) {
+        val prefsDir = File(context.filesDir.parent, "shared_prefs")
+        if (prefsDir.exists() && prefsDir.isDirectory) {
+            val prefsFiles = prefsDir.listFiles()
+            prefsFiles?.forEach { file ->
+                if (file.name.endsWith(".xml")) {
+                    try {
+                        // 使用 buffered reader 提高大文件读取性能
+                        val content = file.bufferedReader().use { it.readText() }
                         if (containsSensitiveData(content)) {
                             issues.add(SecurityIssue(
                                 type = SecurityIssueType.INSECURE_DATA_STORAGE,
@@ -177,28 +252,34 @@ class SecurityAuditor(private val context: Context) {
                                 recommendation = "使用Android Keystore加密存储敏感数据"
                             ))
                         }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "读取SharedPreferences文件失败: ${file.name}")
                     }
                 }
             }
-            
-            // 检查内部存储
-            val filesDir = context.filesDir
-            if (filesDir.exists() && filesDir.isDirectory) {
-                val files = filesDir.listFiles()
-                files?.forEach { file ->
-                    if (file.isFile && file.name.contains("password", ignoreCase = true)) {
+        }
+    }
+    
+    private fun checkInternalStorageSync(issues: MutableList<SecurityIssue>) {
+        val filesDir = context.filesDir
+        if (filesDir.exists() && filesDir.isDirectory) {
+            val files = filesDir.listFiles()
+            files?.forEach { file ->
+                if (file.isFile) {
+                    val fileNameLower = file.name.lowercase()
+                    // 使用更高效的关键字检测
+                    if (fileNameLower.contains("password") || 
+                        fileNameLower.contains("token") ||
+                        fileNameLower.contains("secret")) {
                         issues.add(SecurityIssue(
                             type = SecurityIssueType.INSECURE_DATA_STORAGE,
-                            description = "检测到可能存储密码的文件: ${file.name}",
+                            description = "检测到可能存储敏感数据的文件: ${file.name}",
                             severity = Severity.HIGH,
-                            recommendation = "使用Android Keystore加密存储密码"
+                            recommendation = "使用Android Keystore加密存储敏感数据"
                         ))
                     }
                 }
             }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "数据存储检查失败: ${e.message}")
         }
     }
     
@@ -225,15 +306,10 @@ class SecurityAuditor(private val context: Context) {
                 ))
             }
             
-            // 注意：代码混淆检查需要通过构建配置或反编译分析
-            // 此处仅检查调试模式，实际的混淆状态需要通过其他方式验证
-            
         } catch (e: Exception) {
             Log.e(TAG, "代码混淆检查失败: ${e.message}")
         }
     }
-    
-
     
     private fun checkSdkVersion(issues: MutableList<SecurityIssue>) {
         Log.d(TAG, "检查SDK版本...")
@@ -251,25 +327,29 @@ class SecurityAuditor(private val context: Context) {
                 ))
             }
             
-            // 检查编译SDK版本
-            if (Build.VERSION.SDK_INT < 30) {
-                issues.add(SecurityIssue(
-                    type = SecurityIssueType.OUTDATED_SDK,
-                    description = "编译SDK版本过旧: ${Build.VERSION.SDK_INT}",
-                    severity = Severity.LOW,
-                    recommendation = "更新编译SDK版本到最新稳定版本"
-                ))
-            }
-            
         } catch (e: Exception) {
             Log.e(TAG, "SDK版本检查失败: ${e.message}")
         }
     }
     
+    /**
+     * 同步生成安全报告
+     */
     fun generateSecurityReport(): String {
         val result = performSecurityAudit()
-        
-        val report = JSONObject().apply {
+        return buildReportJson(result)
+    }
+    
+    /**
+     * 异步生成安全报告
+     */
+    suspend fun generateSecurityReportAsync(): String {
+        val result = performSecurityAuditAsync()
+        return buildReportJson(result)
+    }
+    
+    private fun buildReportJson(result: SecurityAuditResult): String {
+        return JSONObject().apply {
             put("isSecure", result.isSecure)
             put("timestamp", result.timestamp)
             put("packageName", context.packageName)
@@ -284,8 +364,6 @@ class SecurityAuditor(private val context: Context) {
                 })
             }
             put("issues", issuesArray)
-        }
-        
-        return report.toString(2)
+        }.toString(2)
     }
 }

@@ -6,7 +6,7 @@ pub use crate::clipboard::{check_clipboard, ClipboardContext, ClipboardSide};
 pub use crate::clipboard::{CLIPBOARD_INTERVAL as INTERVAL, CLIPBOARD_NAME as NAME};
 #[cfg(windows)]
 use crate::ipc::{self, ClipboardFile, ClipboardNonFile, Data};
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 pub use crate::{
     clipboard::{check_clipboard_files, FILE_CLIPBOARD_NAME as FILE_NAME},
     clipboard_file::unix_file_clip,
@@ -80,7 +80,7 @@ fn run(sp: EmptyExtraFieldService) -> ResultType<()> {
     while sp.ok() {
         match rx_cb_result.recv_timeout(Duration::from_millis(INTERVAL)) {
             Ok(CallbackResult::Next) => {
-                #[cfg(feature = "unix-file-copy-paste")]
+                #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
                 if sp.name() == FILE_NAME {
                     handler.check_clipboard_file();
                     continue;
@@ -111,7 +111,7 @@ fn run(sp: EmptyExtraFieldService) -> ResultType<()> {
 
 #[cfg(not(target_os = "android"))]
 impl Handler {
-    #[cfg(feature = "unix-file-copy-paste")]
+    #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
     fn check_clipboard_file(&mut self) {
         if let Some(urls) = check_clipboard_files(&mut self.ctx, ClipboardSide::Host, false) {
             if !urls.is_empty() {

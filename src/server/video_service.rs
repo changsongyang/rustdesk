@@ -47,10 +47,11 @@ use scrap::Capturer;
 use scrap::{
     aom::AomEncoderConfig,
     codec::{Encoder, EncoderCfg},
-    record::{Recorder, RecorderContext},
     vpxcodec::{VpxEncoderConfig, VpxVideoCodecId},
     CodecFormat, Display, EncodeInput, TraitCapturer, TraitPixelBuffer,
 };
+#[cfg(not(target_os = "android"))]
+use scrap::record::{Recorder, RecorderContext};
 #[cfg(windows)]
 use std::sync::Once;
 use std::{
@@ -577,7 +578,41 @@ fn run(vs: VideoService) -> ResultType<()> {
     );
     let client_record = video_qos.record();
     drop(video_qos);
+    #[cfg(not(target_os = "android"))]
     let (mut encoder, encoder_cfg, codec_format, use_i444, recorder) = match setup_encoder(
+        &c,
+        sp.name(),
+        quality,
+        client_record,
+        record_incoming,
+        last_portable_service_running,
+        vs.source,
+        display_idx,
+    ) {
+        Ok(result) => result,
+        Err(err) => {
+            log::error!("Failed to create encoder: {err:?}, fallback to VP9");
+            Encoder::set_fallback(&EncoderCfg::VPX(VpxEncoderConfig {
+                width: c.width as _,
+                height: c.height as _,
+                quality,
+                codec: VpxVideoCodecId::VP9,
+                keyframe_interval: None,
+            }));
+            setup_encoder(
+                &c,
+                sp.name(),
+                quality,
+                client_record,
+                record_incoming,
+                last_portable_service_running,
+                vs.source,
+                display_idx,
+            )?
+        }
+    };
+    #[cfg(target_os = "android")]
+    let (mut encoder, encoder_cfg, codec_format, use_i444) = match setup_encoder(
         &c,
         sp.name(),
         quality,
@@ -765,13 +800,17 @@ fn run(vs: VideoService) -> ResultType<()> {
                     }
 
                     let frame = frame.to(encoder.yuvfmt(), &mut yuv, &mut mid_data)?;
+                    #[cfg(not(target_os = "android"))]
+                    let recorder_arg = recorder.clone();
+                    #[cfg(target_os = "android")]
+                    let recorder_arg = ();
                     let send_conn_ids = handle_one_frame(
                         display_idx,
                         &sp,
                         frame,
                         ms,
                         &mut encoder,
-                        recorder.clone(),
+                        recorder_arg,
                         &mut encode_fail_counter,
                         &mut first_frame,
                         capture_width,
@@ -824,13 +863,17 @@ fn run(vs: VideoService) -> ResultType<()> {
                     // yun.len() > 0 means the frame is not texture.
                     if repeat_encode_counter < repeat_encode_max {
                         repeat_encode_counter += 1;
+                        #[cfg(not(target_os = "android"))]
+                        let recorder_arg = recorder.clone();
+                        #[cfg(target_os = "android")]
+                        let recorder_arg = ();
                         let send_conn_ids = handle_one_frame(
                             display_idx,
                             &sp,
                             EncodeInput::YUV(&yuv),
                             ms,
                             &mut encoder,
-                            recorder.clone(),
+                            recorder_arg,
                             &mut encode_fail_counter,
                             &mut first_frame,
                             capture_width,
@@ -922,6 +965,7 @@ impl Drop for Raii {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn setup_encoder(
     c: &CapturerInfo,
     name: String,
@@ -952,6 +996,38 @@ fn setup_encoder(
     let use_i444 = Encoder::use_i444(&encoder_cfg);
     let encoder = Encoder::new(encoder_cfg.clone(), use_i444)?;
     Ok((encoder, encoder_cfg, codec_format, use_i444, recorder))
+}
+
+#[cfg(target_os = "android")]
+fn setup_encoder(
+    c: &CapturerInfo,
+    name: String,
+    quality: f32,
+    client_record: bool,
+    record_incoming: bool,
+    last_portable_service_running: bool,
+    source: VideoSource,
+    display_idx: usize,
+) -> ResultType<(
+    Encoder,
+    EncoderCfg,
+    CodecFormat,
+    bool,
+)> {
+    let encoder_cfg = get_encoder_config(
+        &c,
+        name.to_string(),
+        quality,
+        client_record || record_incoming,
+        last_portable_service_running,
+        source,
+    );
+    Encoder::set_fallback(&encoder_cfg);
+    let codec_format = Encoder::negotiated_codec();
+    let _recorder = get_recorder(record_incoming, display_idx, source == VideoSource::Camera);
+    let use_i444 = Encoder::use_i444(&encoder_cfg);
+    let encoder = Encoder::new(encoder_cfg.clone(), use_i444)?;
+    Ok((encoder, encoder_cfg, codec_format, use_i444))
 }
 
 fn get_encoder_config(
@@ -1031,6 +1107,7 @@ fn get_encoder_config(
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn get_recorder(
     record_incoming: bool,
     display_idx: usize,
@@ -1064,6 +1141,14 @@ fn get_recorder(
     };
 
     recorder
+}
+
+#[cfg(target_os = "android")]
+fn get_recorder(
+    _record_incoming: bool,
+    _display_idx: usize,
+    _camera: bool,
+) {
 }
 
 #[cfg(target_os = "android")]
@@ -1132,7 +1217,10 @@ fn handle_one_frame(
     frame: EncodeInput,
     ms: i64,
     encoder: &mut Encoder,
+    #[cfg(not(target_os = "android"))]
     recorder: Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    _recorder: (),
     encode_fail_counter: &mut usize,
     first_frame: &mut bool,
     width: usize,
@@ -1156,6 +1244,7 @@ fn handle_one_frame(
             vf.display = display as _;
             let mut msg = Message::new();
             msg.set_video_frame(vf);
+            #[cfg(not(target_os = "android"))]
             recorder
                 .lock()
                 .unwrap()

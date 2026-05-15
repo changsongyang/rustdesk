@@ -115,30 +115,8 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            
-            // 启用代码混淆
-            minifyEnabled true
-            
-            // 启用资源压缩
-            shrinkResources true
-            
-            // 使用优化的混淆配置
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            
-            // 禁用调试
-            debuggable false
-            jniDebuggable false
-            renderscriptDebuggable false
-        }
-        
-        debug {
-            signingConfig signingConfigs.debug
-            debuggable true
-            
-            // 调试版本不启用混淆
-            minifyEnabled false
-            shrinkResources false
+            signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules'
         }
     }
 }
@@ -151,7 +129,8 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-javalite:3.20.1'
     implementation "androidx.media:media:1.6.0"
     implementation 'com.github.getActivity:XXPermissions:18.5'
-    implementation("org.jetbrains.kotlin:kotlin-stdlib") { version { strictly("1.9.10") } }
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
     implementation 'com.caverock:androidsvg-aar:1.4'
     implementation "rustls:rustls-platform-verifier:0.1.1"
 }
