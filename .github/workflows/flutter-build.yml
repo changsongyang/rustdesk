@@ -1008,21 +1008,24 @@ jobs:
           name: librustdesk.so.${{ matrix.job.target }}
           path: ./target/${{ matrix.job.target }}/release/liblibrustdesk.so
 
-      - name: Flutter pub get
-        shell: bash
-        working-directory: flutter
-        run: flutter pub get
-
-      - name: Patch external_path plugin for AGP 8.x
+      - name: Patch plugins for AGP 8.x namespace
         shell: bash
         run: |
-          EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-          if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-            printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
-            cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
-            mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
-            echo "Patched external_path plugin for AGP 8.x namespace requirement"
-          fi
+          PUB_CACHE_DIR="$HOME/.pub-cache/hosted/pub.dev"
+          patch_namespace() {
+            local plugin_dir="$1"
+            local namespace="$2"
+            local gradle_file="$plugin_dir/android/build.gradle"
+            if [ -f "$gradle_file" ] && ! grep -q 'namespace' "$gradle_file"; then
+              sed -i "/^android {/a\\    namespace \"$namespace\"" "$gradle_file"
+              echo "Patched $plugin_dir with namespace $namespace"
+            fi
+          }
+          patch_namespace "$PUB_CACHE_DIR/external_path-1.0.3" "com.pinciat.external_path"
+          patch_namespace "$PUB_CACHE_DIR/flutter_keyboard_visibility-5.4.1" "com.jrai.flutter_keyboard_visibility"
+          patch_namespace "$PUB_CACHE_DIR/device_info-2.0.3" "io.flutter.plugins.deviceinfo"
+          patch_namespace "$PUB_CACHE_DIR/qr_code_scanner-1.0.1" "net.touchcapture.qr.flutterqr"
+          patch_namespace "$PUB_CACHE_DIR/sqflite-2.2.0" "com.tekartik.sqflite"
 
       - name: Build rustdesk
         shell: bash
@@ -1231,21 +1234,24 @@ jobs:
           name: librustdesk.so.i686-linux-android
           path: ./flutter/android/app/src/main/jniLibs/x86
 
-      - name: Flutter pub get
-        shell: bash
-        working-directory: flutter
-        run: flutter pub get
-
-      - name: Patch external_path plugin for AGP 8.x
+      - name: Patch plugins for AGP 8.x namespace
         shell: bash
         run: |
-          EXTERNAL_PATH_GRADLE="$HOME/.pub-cache/hosted/pub.dev/external_path-1.0.3/android/build.gradle"
-          if [ -f "$EXTERNAL_PATH_GRADLE" ] && ! grep -q 'namespace' "$EXTERNAL_PATH_GRADLE"; then
-            printf 'android {\n    namespace "com.pinciat.external_path"\n}\n' > /tmp/namespace_block.txt
-            cat "$EXTERNAL_PATH_GRADLE" >> /tmp/namespace_block.txt
-            mv /tmp/namespace_block.txt "$EXTERNAL_PATH_GRADLE"
-            echo "Patched external_path plugin for AGP 8.x namespace requirement"
-          fi
+          PUB_CACHE_DIR="$HOME/.pub-cache/hosted/pub.dev"
+          patch_namespace() {
+            local plugin_dir="$1"
+            local namespace="$2"
+            local gradle_file="$plugin_dir/android/build.gradle"
+            if [ -f "$gradle_file" ] && ! grep -q 'namespace' "$gradle_file"; then
+              sed -i "/^android {/a\\    namespace \"$namespace\"" "$gradle_file"
+              echo "Patched $plugin_dir with namespace $namespace"
+            fi
+          }
+          patch_namespace "$PUB_CACHE_DIR/external_path-1.0.3" "com.pinciat.external_path"
+          patch_namespace "$PUB_CACHE_DIR/flutter_keyboard_visibility-5.4.1" "com.jrai.flutter_keyboard_visibility"
+          patch_namespace "$PUB_CACHE_DIR/device_info-2.0.3" "io.flutter.plugins.deviceinfo"
+          patch_namespace "$PUB_CACHE_DIR/qr_code_scanner-1.0.1" "net.touchcapture.qr.flutterqr"
+          patch_namespace "$PUB_CACHE_DIR/sqflite-2.2.0" "com.tekartik.sqflite"
 
       - name: Build rustdesk
         shell: bash
