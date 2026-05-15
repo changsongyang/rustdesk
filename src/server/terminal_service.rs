@@ -134,13 +134,13 @@ fn get_default_shell() -> String {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn locale_value_is_utf8(value: &str) -> bool {
     let value = value.to_ascii_uppercase();
     value.contains("UTF-8") || value.contains("UTF8")
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 fn should_force_process_utf8_ctype() -> bool {
     if let Ok(value) = std::env::var("LC_ALL") {
         return !locale_value_is_utf8(&value);
@@ -1207,6 +1207,17 @@ impl TerminalServiceProxy {
                 cmd.env_remove("LC_ALL");
                 cmd.env("LC_CTYPE", "en_US.UTF-8");
                 log::debug!("Set LC_CTYPE=en_US.UTF-8 for macOS PTY");
+            }
+        }
+
+        // Linux-specific terminal configuration
+        // Set LC_CTYPE to UTF-8 to ensure proper Unicode/Chinese character support
+        #[cfg(target_os = "linux")]
+        {
+            if should_force_process_utf8_ctype() {
+                cmd.env_remove("LC_ALL");
+                cmd.env("LC_CTYPE", "en_US.UTF-8");
+                log::debug!("Set LC_CTYPE=en_US.UTF-8 for Linux PTY");
             }
         }
 

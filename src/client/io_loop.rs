@@ -10,7 +10,7 @@ use crate::{
     common::get_default_sound_input,
     ui_session_interface::{InvokeUiSession, Session},
 };
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 use crate::{clipboard::try_empty_clipboard_files, clipboard_file::unix_file_clip};
 #[cfg(any(
     target_os = "windows",
@@ -1778,7 +1778,7 @@ impl<T: InvokeUiSession> Remote<T> {
                                 #[cfg(all(feature = "flutter", feature = "unix-file-copy-paste"))]
                                 crate::flutter::update_file_clipboard_required();
                                 self.handler.set_permission("file", p.enabled);
-                                #[cfg(feature = "unix-file-copy-paste")]
+                                #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
                                 if !p.enabled {
                                     try_empty_clipboard_files(
                                         ClipboardSide::Client,
@@ -2342,7 +2342,7 @@ impl<T: InvokeUiSession> Remote<T> {
                         .map_err(|e| e.into())
                 });
             }
-            #[cfg(feature = "unix-file-copy-paste")]
+            #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
             if crate::is_support_file_copy_paste_num(self.handler.lc.read().unwrap().version) {
                 let mut out_msgs = vec![];
 
@@ -2363,7 +2363,7 @@ impl<T: InvokeUiSession> Remote<T> {
                     );
                 }
 
-                #[cfg(not(target_os = "macos"))]
+                #[cfg(target_os = "linux")]
                 {
                     out_msgs = unix_file_clip::serve_clip_messages(
                         ClipboardSide::Client,

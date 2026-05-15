@@ -2,6 +2,7 @@ use crate::hbbs_http::create_http_client_with_url;
 use bytes::Bytes;
 use hbb_common::{bail, config::Config, lazy_static, log, ResultType};
 use reqwest::blocking::{Body, Client};
+#[cfg(not(target_os = "android"))]
 use scrap::record::RecordState;
 use serde::Serialize;
 use serde_json::Map;
@@ -24,6 +25,7 @@ pub fn is_enable() -> bool {
     ENABLE.lock().unwrap().clone()
 }
 
+#[cfg(not(target_os = "android"))]
 pub fn run(rx: Receiver<RecordState>) {
     std::thread::spawn(move || {
         let api_server = crate::get_api_server(
