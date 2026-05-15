@@ -11,6 +11,7 @@ import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../common.dart';
 import '../../common/widgets/overlay.dart';
@@ -38,17 +39,12 @@ void _disableAndroidSoftKeyboard({bool? isKeyboardVisible}) {
 
 class ViewCameraPage extends StatefulWidget {
   ViewCameraPage(
-      {Key? key,
-      required this.id,
-      this.password,
-      this.isSharedPassword,
-      this.forceRelay})
+      {Key? key, required this.id, this.password, this.isSharedPassword})
       : super(key: key);
 
   final String id;
   final String? password;
   final bool? isSharedPassword;
-  final bool? forceRelay;
 
   @override
   State<ViewCameraPage> createState() => _ViewCameraPageState(id);
@@ -61,7 +57,7 @@ class _ViewCameraPageState extends State<ViewCameraPage>
   bool _showGestureHelp = false;
   Orientation? _currentOrientation;
   double _viewInsetsBottom = 0;
-  final _uniqueKey = UniqueKey();
+
   Timer? _timerDidChangeMetrics;
 
   final _blockableOverlayState = BlockableOverlayState();
@@ -92,14 +88,15 @@ class _ViewCameraPageState extends State<ViewCameraPage>
       isViewCamera: true,
       password: widget.password,
       isSharedPassword: widget.isSharedPassword,
-      forceRelay: widget.forceRelay,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
       gFFI.dialogManager
           .showLoading(translate('Connecting...'), onCancel: closeConnection);
     });
-    WakelockManager.enable(_uniqueKey);
+    if (!isWeb) {
+      WakelockPlus.enable();
+    }
     _physicalFocusNode.requestFocus();
     gFFI.inputModel.listenToMouse(true);
     gFFI.qualityMonitorModel.checkShowQualityMonitor(sessionId);
@@ -136,7 +133,9 @@ class _ViewCameraPageState extends State<ViewCameraPage>
     gFFI.dialogManager.dismissAll();
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
-    WakelockManager.disable(_uniqueKey);
+    if (!isWeb) {
+      await WakelockPlus.disable();
+    }
     removeSharedStates(widget.id);
     // `on_voice_call_closed` should be called when the connection is ended.
     // The inner logic of `on_voice_call_closed` will check if the voice call is active.
@@ -192,7 +191,7 @@ class _ViewCameraPageState extends State<ViewCameraPage>
 
     return WillPopScope(
       onWillPop: () async {
-        clientClose(sessionId, gFFI);
+        clientClose(sessionId, gFFI.dialogManager);
         return false;
       },
       child: Scaffold(
@@ -259,11 +258,13 @@ class _ViewCameraPageState extends State<ViewCameraPage>
                         }
                         return Container(
                           color: MyTheme.canvasColor,
-                          child: RawTouchGestureDetectorRegion(
-                            child: getBodyForMobile(),
-                            ffi: gFFI,
-                            isCamera: true,
-                          ),
+                          child: inputModel.isPhysicalMouse.value
+                              ? getBodyForMobile()
+                              : RawTouchGestureDetectorRegion(
+                                  child: getBodyForMobile(),
+                                  ffi: gFFI,
+                                  isCamera: true,
+                                ),
                         );
                       }),
                     ),
@@ -303,7 +304,7 @@ class _ViewCameraPageState extends State<ViewCameraPage>
                       color: Colors.white,
                       icon: Icon(Icons.clear),
                       onPressed: () {
-                        clientClose(sessionId, gFFI);
+                        clientClose(sessionId, gFFI.dialogManager);
                       },
                     ),
                     IconButton(
@@ -576,21 +577,13 @@ void showOptions(
     BuildContext context, String id, OverlayDialogManager dialogManager) async {
   var displays = <Widget>[];
   final pi = gFFI.ffiModel.pi;
-  final image = gFFI.ffiModel.getConnectionImageText();
+  final image = gFFI.ffiModel.getConnectionImage();
   if (image != null) {
     displays.add(Padding(padding: const EdgeInsets.only(top: 8), child: image));
   }
   if (pi.displays.length > 1 && pi.currentDisplay != kAllDisplayValue) {
     final cur = pi.currentDisplay;
     final children = <Widget>[];
-    final isDarkTheme = MyTheme.currentThemeMode() == ThemeMode.dark;
-    final numColorSelected = Colors.white;
-    final numColorUnselected = isDarkTheme ? Colors.grey : Colors.black87;
-    // We can't use `Theme.of(context).primaryColor` here, the color is:
-    // - light theme: 0xff2196f3 (Colors.blue)
-    // - dark theme: 0xff212121 (the canvas color?)
-    final numBgSelected =
-        Theme.of(context).colorScheme.primary.withOpacity(0.6);
     for (var i = 0; i < pi.displays.length; ++i) {
       children.add(InkWell(
           onTap: () {
@@ -604,12 +597,13 @@ void showOptions(
               decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).hintColor),
                   borderRadius: BorderRadius.circular(2),
-                  color: i == cur ? numBgSelected : null),
+                  color: i == cur
+                      ? Theme.of(context).primaryColor.withOpacity(0.6)
+                      : null),
               child: Center(
                   child: Text((i + 1).toString(),
                       style: TextStyle(
-                          color:
-                              i == cur ? numColorSelected : numColorUnselected,
+                          color: i == cur ? Colors.white : Colors.black87,
                           fontWeight: FontWeight.bold))))));
     }
     displays.add(Padding(

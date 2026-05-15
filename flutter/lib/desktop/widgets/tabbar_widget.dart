@@ -54,7 +54,6 @@ enum DesktopTabType {
   fileTransfer,
   viewCamera,
   portForward,
-  terminal,
   install,
 }
 
@@ -99,7 +98,6 @@ class DesktopTabController {
   /// index, key
   Function(int, String)? onRemoved;
   Function(String)? onSelected;
-  Future<void> Function()? onCloseWindow;
 
   DesktopTabController(
       {required this.tabType, this.onRemoved, this.onSelected});
@@ -293,6 +291,7 @@ class DesktopTab extends StatefulWidget {
 // ignore: must_be_immutable
 class _DesktopTabState extends State<DesktopTab>
     with MultiWindowListener, WindowListener {
+  final _saveFrameDebounce = Debouncer(delay: Duration(seconds: 1));
   Timer? _macOSCheckRestoreTimer;
   int _macOSCheckRestoreCounter = 0;
 
@@ -370,7 +369,7 @@ class _DesktopTabState extends State<DesktopTab>
 
   void _setMaximized(bool maximize) {
     stateGlobal.setMaximized(maximize);
-    _saveFrame();
+    _saveFrameDebounce.call(_saveFrame);
     setState(() {});
   }
 
@@ -405,29 +404,24 @@ class _DesktopTabState extends State<DesktopTab>
     super.onWindowUnmaximize();
   }
 
-  _saveFrame({bool? flush}) async {
-    try {
-      if (tabType == DesktopTabType.main) {
-        await saveWindowPosition(WindowType.Main, flush: flush);
-      } else if (kWindowType != null && kWindowId != null) {
-        await saveWindowPosition(kWindowType!,
-            windowId: kWindowId, flush: flush);
-      }
-    } catch (e) {
-      debugPrint('Error saving window position: $e');
+  _saveFrame() async {
+    if (tabType == DesktopTabType.main) {
+      await saveWindowPosition(WindowType.Main);
+    } else if (kWindowType != null && kWindowId != null) {
+      await saveWindowPosition(kWindowType!, windowId: kWindowId);
     }
   }
 
   @override
   void onWindowMoved() {
-    _saveFrame();
+    _saveFrameDebounce.call(_saveFrame);
     super.onWindowMoved();
   }
 
   @override
   void onWindowResized() {
-    _saveFrame();
-    super.onWindowResized();
+    _saveFrameDebounce.call(_saveFrame);
+    super.onWindowMoved();
   }
 
   @override
@@ -464,8 +458,6 @@ class _DesktopTabState extends State<DesktopTab>
         }
       });
     }
-
-    await _saveFrame(flush: true);
 
     // hide window on close
     if (isMainWindow) {
@@ -593,13 +585,14 @@ class _DesktopTabState extends State<DesktopTab>
   }
 
   Widget _buildBar() {
-    final isIncomingHomePage = bind.isIncomingOnly() && isInHomePage();
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
             child: GestureDetector(
                 // custom double tap handler
-                onTap: !isIncomingHomePage && showMaximize
+                onTap: !(bind.isIncomingOnly() && isInHomePage()) &&
+                        showMaximize
                     ? () {
                         final current = DateTime.now().millisecondsSinceEpoch;
                         final elapsed = current - _lastClickTime;
@@ -610,7 +603,7 @@ class _DesktopTabState extends State<DesktopTab>
                               .then((value) => stateGlobal.setMaximized(value));
                         }
                       }
-                    : (isIncomingHomePage ? () {} : null), // Keep tap recognizer for Windows touch.
+                    : null,
                 onPanStart: (_) => startDragging(isMainWindow),
                 onPanCancel: () {
                   // We want to disable dragging of the tab area in the tab bar.
@@ -1085,12 +1078,11 @@ class _TabState extends State<_Tab> with RestorationMixin {
       return ConstrainedBox(
           constraints: BoxConstraints(maxWidth: widget.maxLabelWidth ?? 200),
           child: Tooltip(
-            message:
-                widget.tabType == DesktopTabType.main ? '' : widget.label.value,
+            message: widget.tabType == DesktopTabType.main
+                ? ''
+                : translate(widget.label.value),
             child: Text(
-              widget.tabType == DesktopTabType.main
-                  ? translate(widget.label.value)
-                  : widget.label.value,
+              translate(widget.label.value),
               textAlign: TextAlign.center,
               style: TextStyle(
                   color: isSelected

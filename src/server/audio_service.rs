@@ -157,7 +157,7 @@ mod pa_impl {
 }
 
 #[inline]
-#[cfg(all(feature = "screencapturekit", target_os = "macos"))]
+#[cfg(feature = "screencapturekit")]
 pub fn is_screen_capture_kit_available() -> bool {
     cpal::available_hosts()
         .iter()
@@ -178,7 +178,7 @@ mod cpal_impl {
         static ref INPUT_BUFFER: Arc<Mutex<std::collections::VecDeque<f32>>> = Default::default();
     }
 
-    #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
+    #[cfg(feature = "screencapturekit")]
     lazy_static::lazy_static! {
         static ref HOST_SCREEN_CAPTURE_KIT: Result<Host, cpal::HostUnavailable> = cpal::host_from_id(cpal::HostId::ScreenCaptureKit);
     }
@@ -259,7 +259,7 @@ mod cpal_impl {
         send_f32(&data, encoder, sp);
     }
 
-    #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
+    #[cfg(feature = "screencapturekit")]
     fn get_device() -> ResultType<(Device, SupportedStreamConfig)> {
         let audio_input = super::get_audio_input();
         if !audio_input.is_empty() {
@@ -309,7 +309,7 @@ mod cpal_impl {
 
     fn get_audio_input(audio_input: &str) -> ResultType<(Device, SupportedStreamConfig)> {
         let mut device = None;
-        #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
+        #[cfg(feature = "screencapturekit")]
         if !audio_input.is_empty() && is_screen_capture_kit_available() {
             for d in HOST_SCREEN_CAPTURE_KIT
                 .as_ref()?

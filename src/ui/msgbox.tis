@@ -193,10 +193,8 @@ class MsgboxComponent: Reactor.Component {
     }
     
     function submit() {
-        var submit_btn = this.$(button#submit);
-        if (submit_btn) {
-            if (submit_btn.state.disabled) return;
-            submit_btn.sendEvent("click");
+        if (this.$(button#submit)) {
+            this.$(button#submit).sendEvent("click");
         }
     }
     

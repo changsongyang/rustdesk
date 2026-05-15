@@ -2,7 +2,7 @@ LIBRARY "CustomActions"
 
 EXPORTS
     CustomActionHello
-    RemoveRuntimeGeneratedFiles
+    RemoveInstallFolder
     TerminateProcesses
     AddFirewallRules
     SetPropertyIsServiceRunning

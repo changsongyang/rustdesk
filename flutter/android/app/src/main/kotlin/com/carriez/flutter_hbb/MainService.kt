@@ -122,9 +122,9 @@ class MainService : Service() {
                     val authorized = jsonObject["authorized"] as Boolean
                     val isFileTransfer = jsonObject["is_file_transfer"] as Boolean
                     val type = if (isFileTransfer) {
-                        translate("Transfer file")
+                        translate("File Connection")
                     } else {
-                        translate("Share screen")
+                        translate("Screen Connection")
                     }
                     if (authorized) {
                         if (!isFileTransfer && !isStart) {

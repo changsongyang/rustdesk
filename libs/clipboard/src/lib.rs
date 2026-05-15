@@ -132,9 +132,6 @@ pub enum ClipboardFile {
         requested_data: Vec<u8>,
     },
     TryEmpty,
-    Files {
-        files: Vec<(String, u64)>,
-    },
 }
 
 struct MsgChannel {

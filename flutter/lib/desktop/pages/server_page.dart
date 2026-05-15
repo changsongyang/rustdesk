@@ -355,7 +355,6 @@ Widget buildConnectionCard(Client client) {
         _CmHeader(client: client),
         client.type_() == ClientType.file ||
                 client.type_() == ClientType.portForward ||
-                client.type_() == ClientType.terminal ||
                 client.disconnected
             ? Offstage()
             : _PrivilegeBoard(client: client),
@@ -462,7 +461,23 @@ class _CmHeaderState extends State<_CmHeader>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildClientAvatar().marginOnly(right: 10.0),
+          Container(
+            width: 70,
+            height: 70,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: str2color(client.name),
+              borderRadius: BorderRadius.circular(15.0),
+            ),
+            child: Text(
+              client.name[0],
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 55,
+              ),
+            ),
+          ).marginOnly(right: 10.0),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -484,36 +499,7 @@ class _CmHeaderState extends State<_CmHeader>
                     "(${client.peerId})",
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
-                ),
-                if (client.type_() == ClientType.terminal)
-                  FittedBox(
-                    child: Text(
-                      translate("Terminal"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.file)
-                  FittedBox(
-                    child: Text(
-                      translate("File Transfer"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.camera)
-                  FittedBox(
-                    child: Text(
-                      translate("View Camera"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.portForward.isNotEmpty)
-                  FittedBox(
-                    child: Text(
-                      "Port Forward: ${client.portForward}",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                SizedBox(height: 10.0),
+                ).marginOnly(bottom: 10.0),
                 FittedBox(
                     child: Row(
                   children: [
@@ -566,36 +552,6 @@ class _CmHeaderState extends State<_CmHeader>
 
   @override
   bool get wantKeepAlive => true;
-
-  Widget _buildClientAvatar() {
-    return buildAvatarWidget(
-          avatar: client.avatar,
-          size: 70,
-          borderRadius: 15,
-          fallback: _buildInitialAvatar(),
-        ) ??
-        _buildInitialAvatar();
-  }
-
-  Widget _buildInitialAvatar() {
-    return Container(
-      width: 70,
-      height: 70,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: str2color(client.name),
-        borderRadius: BorderRadius.circular(15.0),
-      ),
-      child: Text(
-        client.name.isNotEmpty ? client.name[0] : '?',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          fontSize: 55,
-        ),
-      ),
-    );
-  }
 }
 
 class _PrivilegeBoard extends StatefulWidget {
@@ -610,24 +566,19 @@ class _PrivilegeBoard extends StatefulWidget {
 class _PrivilegeBoardState extends State<_PrivilegeBoard> {
   late final client = widget.client;
   Widget buildPermissionIcon(bool enabled, IconData iconData,
-      Function(bool)? onTap, String tooltipText,
-      {required bool canModify}) {
+      Function(bool)? onTap, String tooltipText) {
     return Tooltip(
       message: "$tooltipText: ${enabled ? "ON" : "OFF"}",
       waitDuration: Duration.zero,
       child: Container(
         decoration: BoxDecoration(
-          color: enabled
-              ? (canModify ? MyTheme.accent : MyTheme.accent.withOpacity(0.6))
-              : Colors.grey[700],
+          color: enabled ? MyTheme.accent : Colors.grey[700],
           borderRadius: BorderRadius.circular(10.0),
         ),
         padding: EdgeInsets.all(8.0),
         child: InkWell(
-          onTap: canModify
-              ? () =>
-                  checkClickTime(widget.client.id, () => onTap?.call(!enabled))
-              : null,
+          onTap: () =>
+              checkClickTime(widget.client.id, () => onTap?.call(!enabled)),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -648,9 +599,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
   Widget build(BuildContext context) {
     final crossAxisCount = 4;
     final spacing = 10.0;
-    final canModifyPermission =
-        bind.mainGetBuildinOption(key: kOptionEnablePermChangeInAcceptWindow) !=
-            'N';
     return Container(
       width: double.infinity,
       height: 160.0,
@@ -697,7 +645,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable audio'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.recording,
@@ -712,7 +659,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable recording session'),
-                        canModify: canModifyPermission,
                       ),
                     ]
                   : [
@@ -729,7 +675,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable keyboard/mouse'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.clipboard,
@@ -744,7 +689,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable clipboard'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.audio,
@@ -759,7 +703,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable audio'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.file,
@@ -774,7 +717,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable file copy and paste'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.restart,
@@ -789,7 +731,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable remote restart'),
-                        canModify: canModifyPermission,
                       ),
                       buildPermissionIcon(
                         client.recording,
@@ -804,7 +745,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                           });
                         },
                         translate('Enable recording session'),
-                        canModify: canModifyPermission,
                       ),
                       // only windows support block input
                       if (isWindows)
@@ -821,23 +761,6 @@ class _PrivilegeBoardState extends State<_PrivilegeBoard> {
                             });
                           },
                           translate('Enable blocking user input'),
-                          canModify: canModifyPermission,
-                        ),
-                      if (bind.mainSupportedPrivacyModeImpls() != '[]')
-                        buildPermissionIcon(
-                          client.privacyMode,
-                          Icons.visibility_off,
-                          (enabled) {
-                            bind.cmSwitchPermission(
-                                connId: client.id,
-                                name: "privacy_mode",
-                                enabled: enabled);
-                            setState(() {
-                              client.privacyMode = enabled;
-                            });
-                          },
-                          translate('Enable privacy mode'),
-                          canModify: canModifyPermission,
                         )
                     ],
             ),

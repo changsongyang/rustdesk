@@ -10,20 +10,18 @@ authors = ["Ram <quadrupleslap@gmail.com>"]
 edition = "2018"
 
 [features]
-default = ["webm"]
-wayland = ["gstreamer", "gstreamer-app", "gstreamer-video", "dbus", "tracing", "zbus"]
-mediacodec = []
+wayland = ["gstreamer", "gstreamer-app", "gstreamer-video", "dbus", "tracing"]
+mediacodec = ["ndk"]
 linux-pkg-config = ["dep:pkg-config"]
 hwcodec = ["dep:hwcodec"]
 vram = ["hwcodec/vram"]
-webm = ["dep:webm"]
 
 [dependencies]
 cfg-if = "1.0"
 num_cpus = "1.15"
 lazy_static = "1.4"
 hbb_common = { path = "../hbb_common" }
-webm = { git = "https://github.com/rustdesk-org/rust-webm", optional = true }
+webm = { git = "https://github.com/rustdesk-org/rust-webm" }
 serde = {version="1.0", features=["derive"]}
 
 [dependencies.winapi]
@@ -59,7 +57,6 @@ tracing = { version = "0.1", optional = true }
 gstreamer = { version = "0.16", optional = true }
 gstreamer-app = { version = "0.16", features = ["v1_10"], optional = true }
 gstreamer-video = { version = "0.16", optional = true }
-zbus = { version = "3.15", optional = true }
 
 [dependencies.hwcodec]
 git = "https://github.com/rustdesk-org/hwcodec"

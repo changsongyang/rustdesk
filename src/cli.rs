@@ -25,13 +25,7 @@ impl Session {
     pub fn new(id: &str, sender: mpsc::UnboundedSender<Data>) -> Self {
         let mut password = "".to_owned();
         if PeerConfig::load(id).password.is_empty() {
-            match rpassword::prompt_password("Enter password: ") {
-                Ok(p) => password = p,
-                Err(e) => {
-                    log::error!("Failed to read password: {:?}", e);
-                    password = "".to_owned();
-                }
-            }
+            password = rpassword::prompt_password("Enter password: ").unwrap();
         }
         let session = Self {
             id: id.to_owned(),
@@ -46,7 +40,6 @@ impl Session {
             false,
             None,
             None,
-            None,
         );
         session
     }
@@ -54,7 +47,7 @@ impl Session {
 
 #[async_trait]
 impl Interface for Session {
-    fn get_lch(&self) -> Arc<RwLock<LoginConfigHandler>> {
+    fn get_login_config_handler(&self) -> Arc<RwLock<LoginConfigHandler>> {
         return self.lc.clone();
     }
 
@@ -62,24 +55,14 @@ impl Interface for Session {
         match msgtype {
             "input-password" => {
                 self.sender
-                    .send(Data::Login((
-                        self.password.clone(),  // 密码
-                        "".to_string(),         // OTP（如有）
-                        "".to_string(),         // 连接令牌（如有）
-                        true,                   // 是否记住密码
-                    )))
+                    .send(Data::Login((self.password.clone(), true)))
                     .ok();
             }
             "re-input-password" => {
                 log::error!("{}: {}", title, text);
                 match rpassword::prompt_password("Enter password: ") {
                     Ok(password) => {
-                        let login_data = Data::Login((
-                            password,             // 密码
-                            "".to_string(),       // OTP（如有）
-                            "".to_string(),       // 连接令牌（如有）
-                            true,                 // 是否记住密码
-                        ));
+                        let login_data = Data::Login((password, true));
                         self.sender.send(login_data).ok();
                     }
                     Err(e) => {
@@ -138,8 +121,6 @@ impl Interface for Session {
     fn send(&self, data: Data) {
         self.sender.send(data).ok();
     }
-
-    fn set_multiple_windows_session(&self, _sessions: Vec<hbb_common::message_proto::WindowsSession>) {}
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -150,7 +131,7 @@ pub async fn connect_test(id: &str, key: String, token: String) {
         Err(err) => {
             log::error!("Failed to connect {}: {}", &id, err);
         }
-        Ok(((mut stream, direct, _, _, _), _)) => {
+        Ok((mut stream, direct)) => {
             log::info!("direct: {}", direct);
             // rpassword::prompt_password("Input anything to exit").ok();
             loop {

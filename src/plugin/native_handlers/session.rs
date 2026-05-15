@@ -55,15 +55,13 @@ impl PluginNativeHandler for PluginNativeSessionHandler {
             "start_session" => {
                 if let Some(id) = data.get("id") {
                     if let Some(id) = id.as_str() {
-                        let mut sessions = SESSION_HANDLER.sessions.write().unwrap();
-                        if let Some(index) = sessions.iter().position(|session| session.lc.read().unwrap().session_id.to_string() == id) {
-                            let session = sessions.remove(index);
-                            let round = session.connection_round_state.lock().unwrap().new_round();
-                            let session = Arc::try_unwrap(session).unwrap_or_else(|arc| {
-                                log::warn!("Failed to unwrap session Arc, using clone");
-                                (*arc).clone()
-                            });
-                            crate::ui_session_interface::io_loop(session, round);
+                        let sessions = SESSION_HANDLER.sessions.read().unwrap();
+                        for session in sessions.iter() {
+                            if session.id == id {
+                                let round =
+                                    session.connection_round_state.lock().unwrap().new_round();
+                                crate::ui_session_interface::io_loop(session.clone(), round);
+                            }
                         }
                     }
                 }
@@ -124,7 +122,7 @@ impl PluginNativeHandler for PluginNativeSessionHandler {
 impl PluginNativeSessionHandler {
     fn create_session(&self, session_id: String) -> String {
         let session =
-            crate::flutter::session_add(&session_id, &session_id, false, false, false, false, false, "", false, "".to_owned(), false, None);
+            crate::flutter::session_add(&session_id, false, false, false, "", false, "".to_owned());
         if let Ok(session) = session {
             let mut sessions = self.sessions.write().unwrap();
             sessions.push(session);
@@ -135,7 +133,7 @@ impl PluginNativeSessionHandler {
             // todo: APP_TYPE_DESKTOP_REMOTE is not used anymore.
             // crate::flutter::APP_TYPE_DESKTOP_REMOTE + window id, is used for multi-window support.
             crate::flutter::push_global_event(
-                crate::flutter::APP_TYPE_MAIN,
+                crate::flutter::APP_TYPE_DESKTOP_REMOTE,
                 serde_json::to_string(&m).unwrap_or("".to_string()),
             );
             return session_id;
@@ -147,7 +145,7 @@ impl PluginNativeSessionHandler {
     fn add_session_hook(&self, session_id: String, cb: OnSessionRgbaCallback) {
         let sessions = self.sessions.read().unwrap();
         for session in sessions.iter() {
-            if session.lc.read().unwrap().session_id.to_string() == session_id {
+            if session.id == session_id {
                 self.cbs.write().unwrap().insert(session_id.to_owned(), cb);
                 session.ui_handler.add_session_hook(
                     session_id,
@@ -161,7 +159,7 @@ impl PluginNativeSessionHandler {
     fn remove_session_hook(&self, session_id: String) {
         let sessions = self.sessions.read().unwrap();
         for session in sessions.iter() {
-            if session.lc.read().unwrap().session_id.to_string() == session_id {
+            if session.id == session_id {
                 session.ui_handler.remove_session_hook(&session_id);
             }
         }
@@ -171,12 +169,10 @@ impl PluginNativeSessionHandler {
         let _ = self.cbs.write().unwrap().remove(&session_id);
         let mut sessions = self.sessions.write().unwrap();
         for i in 0..sessions.len() {
-            if sessions[i].lc.read().unwrap().session_id.to_string() == session_id {
-                let sid: crate::flutter_ffi::SessionID = session_id.parse().unwrap_or_default();
-                sessions[i].ui_handler.close_event_stream(sid);
+            if sessions[i].id == session_id {
+                sessions[i].close_event_stream();
                 sessions[i].close();
                 sessions.remove(i);
-                break;
             }
         }
     }
@@ -186,14 +182,13 @@ impl PluginNativeSessionHandler {
     fn session_rgba_cb(&self, session_id: String, rgb: &mut scrap::ImageRgb) {
         let cbs = self.cbs.read().unwrap();
         if let Some(cb) = cbs.get(&session_id) {
-            let stride = scrap::get_bytes_per_row(rgb.w, rgb.fmt, rgb.align);
             unsafe {
                 cb(
                     session_id.as_ptr() as _,
                     rgb.raw.as_mut_ptr() as _,
                     addr_of_mut!(rgb.w),
                     addr_of_mut!(rgb.h),
-                    &stride as *const usize as _,
+                    addr_of_mut!(rgb.stride),
                     addr_of_mut!(rgb.fmt),
                 );
             }
@@ -202,14 +197,11 @@ impl PluginNativeSessionHandler {
 
     #[inline]
     // The callback function for rgba data
-    fn session_register_event_stream(&self, session_id: String, stream: StreamSink<String>) {
+    fn session_register_event_stream(&self, session_id: String, stream: StreamSink<EventToUI>) {
         let sessions = self.sessions.read().unwrap();
         for session in sessions.iter() {
-            if session.lc.read().unwrap().session_id.to_string() == session_id {
-                #[cfg(not(any(target_os = "android", target_os = "ios")))]
-                if let Some(hooks) = session.ui_handler.hooks.try_write() {
-                    // Event stream is managed differently
-                }
+            if session.id == session_id {
+                *session.event_stream.write().unwrap() = Some(stream);
                 break;
             }
         }
@@ -222,6 +214,6 @@ fn session_rgba_cb(id: String, rgb: &mut scrap::ImageRgb) {
 }
 
 #[inline]
-pub fn session_register_event_stream(id: String, stream: StreamSink<String>) {
+pub fn session_register_event_stream(id: String, stream: StreamSink<EventToUI>) {
     SESSION_HANDLER.session_register_event_stream(id, stream);
 }

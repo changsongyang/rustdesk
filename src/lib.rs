@@ -3,8 +3,7 @@ mod keyboard;
 pub mod platform;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub use platform::{
-    clip_cursor, get_cursor, get_cursor_data, get_cursor_pos, get_focused_display,
-    set_cursor_pos, start_os_service,
+    get_cursor, get_cursor_data, get_cursor_pos, get_focused_display, start_os_service,
 };
 #[cfg(not(any(target_os = "ios")))]
 /// cbindgen:ignore
@@ -57,9 +56,6 @@ pub mod plugin;
 mod tray;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod whiteboard;
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod updater;
 
 mod ui_cm_interface;
@@ -75,5 +71,3 @@ pub mod privacy_mode;
 
 #[cfg(windows)]
 pub mod virtual_display_manager;
-
-mod kcp_stream;

@@ -1,4 +1,4 @@
-use super::create_http_client_async_with_url;
+use super::create_http_client_async;
 use hbb_common::{
     bail,
     lazy_static::lazy_static,
@@ -53,25 +53,8 @@ pub fn download_file(
     auto_del_dur: Option<Duration>,
 ) -> ResultType<String> {
     let id = url.clone();
-    // First pass: if a non-error downloader exists for this URL, reuse it.
-    // If an errored downloader exists, remove it so this call can retry.
-    let mut stale_path = None;
-    {
-        let mut downloaders = DOWNLOADERS.lock().unwrap();
-        if let Some(downloader) = downloaders.get(&id) {
-            if downloader.error.is_none() {
-                return Ok(id);
-            }
-            stale_path = downloader.path.clone();
-            downloaders.remove(&id);
-        }
-    }
-    if let Some(p) = stale_path {
-        if p.exists() {
-            if let Err(e) = std::fs::remove_file(&p) {
-                log::warn!("Failed to remove stale download file {}: {}", p.display(), e);
-            }
-        }
+    if DOWNLOADERS.lock().unwrap().contains_key(&id) {
+        return Ok(id);
     }
 
     if let Some(path) = path.as_ref() {
@@ -92,26 +75,8 @@ pub fn download_file(
         tx_cancel: tx,
         finished: false,
     };
-    // Second pass (atomic with insert) to avoid race with another concurrent caller.
-    let mut stale_path_after_check = None;
-    {
-        let mut downloaders = DOWNLOADERS.lock().unwrap();
-        if let Some(existing) = downloaders.get(&id) {
-            if existing.error.is_none() {
-                return Ok(id);
-            }
-            stale_path_after_check = existing.path.clone();
-            downloaders.remove(&id);
-        }
-        downloaders.insert(id.clone(), downloader);
-    }
-    if let Some(p) = stale_path_after_check {
-        if p.exists() {
-            if let Err(e) = std::fs::remove_file(&p) {
-                log::warn!("Failed to remove stale download file {}: {}", p.display(), e);
-            }
-        }
-    }
+    let mut downloaders = DOWNLOADERS.lock().unwrap();
+    downloaders.insert(id.clone(), downloader);
 
     let id2 = id.clone();
     std::thread::spawn(
@@ -167,7 +132,7 @@ async fn do_download(
     auto_del_dur: Option<Duration>,
     mut rx_cancel: UnboundedReceiver<()>,
 ) -> ResultType<bool> {
-    let client = create_http_client_async_with_url(&url).await;
+    let client = create_http_client_async();
 
     let mut is_all_downloaded = false;
     tokio::select! {
