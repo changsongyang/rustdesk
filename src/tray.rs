@@ -10,15 +10,17 @@ use std::time::Duration;
 
 pub fn start_tray() {
     if crate::ui_interface::get_builtin_option(hbb_common::config::keys::OPTION_HIDE_TRAY) == "Y" {
+        #[cfg(target_os = "macos")]
+        {
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
         #[cfg(not(target_os = "macos"))]
         {
             return;
         }
     }
-
-    #[cfg(target_os = "linux")]
-    crate::server::check_zombie();
-
     allow_err!(make_tray());
 }
 
@@ -97,11 +99,9 @@ fn make_tray() -> hbb_common::ResultType<()> {
         }
         #[cfg(target_os = "linux")]
         {
-            // Do not use "xdg-open", it won't read the config.
+            // Do not use "xdg-open", it won't read config
             if crate::dbus::invoke_new_connection(crate::get_uri_prefix()).is_err() {
-                if let Ok(task) = crate::run_me::<&str>(vec![]) {
-                    crate::server::CHILD_PROCESS.lock().unwrap().push(task);
-                }
+                crate::run_me::<&str>(vec![]).ok();
             }
         }
     };
@@ -123,11 +123,6 @@ fn make_tray() -> hbb_common::ResultType<()> {
         );
 
         if let tao::event::Event::NewEvents(tao::event::StartCause::Init) = event {
-            // for fixing https://github.com/rustdesk/rustdesk/discussions/10210#discussioncomment-14600745
-            // so we start tray, but not to show it
-            if crate::ui_interface::get_builtin_option(hbb_common::config::keys::OPTION_HIDE_TRAY) == "Y" {
-                return;
-            }
             // We create the icon once the event loop is actually running
             // to prevent issues like https://github.com/tauri-apps/tray-icon/issues/90
             let tray = TrayIconBuilder::new()

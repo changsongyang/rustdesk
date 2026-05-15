@@ -62,13 +62,7 @@ class MainActivity : FlutterActivity() {
             channelTag
         )
         initFlutterChannel(flutterMethodChannel!!)
-        thread {
-            try {
-                setCodecInfo()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Failed to setCodecInfo: ${e.message}", e)
-            }
-        }
+        thread { setCodecInfo() }
     }
 
     override fun onResume() {
@@ -322,7 +316,7 @@ class MainActivity : FlutterActivity() {
                 codecObject.put("mime_type", mime_type)
                 val caps = codec.getCapabilitiesForType(mime_type)
                 if (codec.isEncoder) {
-                    // Encoder's max_height and max_width are interchangeable
+                    // Encoder‘s max_height and max_width are interchangeable
                     if (!caps.videoCapabilities.isSizeSupported(w,h) && !caps.videoCapabilities.isSizeSupported(h,w)) {
                         return@forEach
                     }

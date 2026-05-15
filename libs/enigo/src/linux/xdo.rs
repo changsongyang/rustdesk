@@ -1,22 +1,50 @@
-//! XDO-based input emulation for Linux.
-//!
-//! This module uses libxdo-sys (patched to use dynamic loading stub) for input emulation.
-//! The stub handles dynamic loading of libxdo, so we just call the functions directly.
-//!
-//! If libxdo is not available at runtime, all operations become no-ops.
-
 use crate::{Key, KeyboardControllable, MouseButton, MouseControllable};
 
-use hbb_common::libc::c_int;
-use libxdo_sys::{self, xdo_t, CURRENTWINDOW};
-use std::{borrow::Cow, ffi::CString};
+use hbb_common::libc::{c_char, c_int, c_void, useconds_t};
+use std::{borrow::Cow, ffi::CString, ptr};
 
-/// Default delay per keypress in microseconds.
-/// This value is passed to libxdo functions and must fit in `useconds_t` (u32).
+const CURRENT_WINDOW: c_int = 0;
 const DEFAULT_DELAY: u64 = 12000;
+type Window = c_int;
+type Xdo = *const c_void;
 
-/// Maximum allowed delay value (u32::MAX as u64).
-const MAX_DELAY: u64 = u32::MAX as u64;
+#[link(name = "xdo")]
+extern "C" {
+    fn xdo_free(xdo: Xdo);
+    fn xdo_new(display: *const c_char) -> Xdo;
+
+    fn xdo_click_window(xdo: Xdo, window: Window, button: c_int) -> c_int;
+    fn xdo_mouse_down(xdo: Xdo, window: Window, button: c_int) -> c_int;
+    fn xdo_mouse_up(xdo: Xdo, window: Window, button: c_int) -> c_int;
+    fn xdo_move_mouse(xdo: Xdo, x: c_int, y: c_int, screen: c_int) -> c_int;
+    fn xdo_move_mouse_relative(xdo: Xdo, x: c_int, y: c_int) -> c_int;
+
+    fn xdo_enter_text_window(
+        xdo: Xdo,
+        window: Window,
+        string: *const c_char,
+        delay: useconds_t,
+    ) -> c_int;
+    fn xdo_send_keysequence_window(
+        xdo: Xdo,
+        window: Window,
+        string: *const c_char,
+        delay: useconds_t,
+    ) -> c_int;
+    fn xdo_send_keysequence_window_down(
+        xdo: Xdo,
+        window: Window,
+        string: *const c_char,
+        delay: useconds_t,
+    ) -> c_int;
+    fn xdo_send_keysequence_window_up(
+        xdo: Xdo,
+        window: Window,
+        string: *const c_char,
+        delay: useconds_t,
+    ) -> c_int;
+    fn xdo_get_input_state(xdo: Xdo) -> u32;
+}
 
 fn mousebutton(button: MouseButton) -> c_int {
     match button {
@@ -34,7 +62,7 @@ fn mousebutton(button: MouseButton) -> c_int {
 
 /// The main struct for handling the event emitting
 pub(super) struct EnigoXdo {
-    xdo: *mut xdo_t,
+    xdo: Xdo,
     delay: u64,
 }
 // This is safe, we have a unique pointer.
@@ -42,61 +70,37 @@ pub(super) struct EnigoXdo {
 unsafe impl Send for EnigoXdo {}
 
 impl Default for EnigoXdo {
-    /// Create a new EnigoXdo instance.
-    ///
-    /// If libxdo is not available, the xdo pointer will be null and all
-    /// input operations will be no-ops.
+    /// Create a new EnigoXdo instance
     fn default() -> Self {
-        let xdo = unsafe { libxdo_sys::xdo_new(std::ptr::null()) };
-        if xdo.is_null() {
-            log::warn!("Failed to create xdo context, xdo functions will be disabled");
-        } else {
-            log::info!("xdo context created successfully");
-        }
         Self {
-            xdo,
+            xdo: unsafe { xdo_new(ptr::null()) },
             delay: DEFAULT_DELAY,
         }
     }
 }
-
 impl EnigoXdo {
-    /// Get the delay per keypress in microseconds.
-    ///
-    /// Default value is 12000 (12ms). This is Linux-specific.
+    /// Get the delay per keypress.
+    /// Default value is 12000.
+    /// This is Linux-specific.
     pub fn delay(&self) -> u64 {
         self.delay
     }
-
-    /// Set the delay per keypress in microseconds.
-    ///
-    /// This is Linux-specific. The value is clamped to `u32::MAX` (approximately
-    /// 4295 seconds) because libxdo uses `useconds_t` which is typically `u32`.
-    ///
-    /// # Arguments
-    /// * `delay` - Delay in microseconds. Values exceeding `u32::MAX` will be clamped.
+    /// Set the delay per keypress.
+    /// This is Linux-specific.
     pub fn set_delay(&mut self, delay: u64) {
-        self.delay = delay.min(MAX_DELAY);
-        if delay > MAX_DELAY {
-            log::warn!(
-                "delay value {} exceeds maximum {}, clamped",
-                delay,
-                MAX_DELAY
-            );
-        }
+        self.delay = delay;
     }
 }
-
 impl Drop for EnigoXdo {
     fn drop(&mut self) {
-        if !self.xdo.is_null() {
-            unsafe {
-                libxdo_sys::xdo_free(self.xdo);
-            }
+        if self.xdo.is_null() {
+            return;
+        }
+        unsafe {
+            xdo_free(self.xdo);
         }
     }
 }
-
 impl MouseControllable for EnigoXdo {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -111,47 +115,42 @@ impl MouseControllable for EnigoXdo {
             return;
         }
         unsafe {
-            libxdo_sys::xdo_move_mouse(self.xdo as *const _, x, y, 0);
+            xdo_move_mouse(self.xdo, x as c_int, y as c_int, 0);
         }
     }
-
     fn mouse_move_relative(&mut self, x: i32, y: i32) {
         if self.xdo.is_null() {
             return;
         }
         unsafe {
-            libxdo_sys::xdo_move_mouse_relative(self.xdo as *const _, x, y);
+            xdo_move_mouse_relative(self.xdo, x as c_int, y as c_int);
         }
     }
-
     fn mouse_down(&mut self, button: MouseButton) -> crate::ResultType {
         if self.xdo.is_null() {
             return Ok(());
         }
         unsafe {
-            libxdo_sys::xdo_mouse_down(self.xdo as *const _, CURRENTWINDOW, mousebutton(button));
+            xdo_mouse_down(self.xdo, CURRENT_WINDOW, mousebutton(button));
         }
         Ok(())
     }
-
     fn mouse_up(&mut self, button: MouseButton) {
         if self.xdo.is_null() {
             return;
         }
         unsafe {
-            libxdo_sys::xdo_mouse_up(self.xdo as *const _, CURRENTWINDOW, mousebutton(button));
+            xdo_mouse_up(self.xdo, CURRENT_WINDOW, mousebutton(button));
         }
     }
-
     fn mouse_click(&mut self, button: MouseButton) {
         if self.xdo.is_null() {
             return;
         }
         unsafe {
-            libxdo_sys::xdo_click_window(self.xdo as *const _, CURRENTWINDOW, mousebutton(button));
+            xdo_click_window(self.xdo, CURRENT_WINDOW, mousebutton(button));
         }
     }
-
     fn mouse_scroll_x(&mut self, length: i32) {
         let button;
         let mut length = length;
@@ -170,7 +169,6 @@ impl MouseControllable for EnigoXdo {
             self.mouse_click(button);
         }
     }
-
     fn mouse_scroll_y(&mut self, length: i32) {
         let button;
         let mut length = length;
@@ -190,7 +188,6 @@ impl MouseControllable for EnigoXdo {
         }
     }
 }
-
 fn keysequence<'a>(key: Key) -> Cow<'a, str> {
     if let Key::Layout(c) = key {
         return Cow::Owned(format!("U{:X}", c as u32));
@@ -287,7 +284,6 @@ fn keysequence<'a>(key: Key) -> Cow<'a, str> {
         _ => "",
     })
 }
-
 impl KeyboardControllable for EnigoXdo {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -318,7 +314,7 @@ impl KeyboardControllable for EnigoXdo {
         let mod_alt = 1 << 3;
         let mod_numlock = 1 << 4;
         let mod_meta = 1 << 6;
-        let mask = unsafe { libxdo_sys::xdo_get_input_state(self.xdo as *const _) };
+        let mask = unsafe { xdo_get_input_state(self.xdo) };
         match key {
             Key::Shift => mask & mod_shift != 0,
             Key::CapsLock => mask & mod_lock != 0,
@@ -336,59 +332,56 @@ impl KeyboardControllable for EnigoXdo {
         }
         if let Ok(string) = CString::new(sequence) {
             unsafe {
-                libxdo_sys::xdo_enter_text_window(
-                    self.xdo as *const _,
-                    CURRENTWINDOW,
+                xdo_enter_text_window(
+                    self.xdo,
+                    CURRENT_WINDOW,
                     string.as_ptr(),
-                    self.delay as libxdo_sys::useconds_t,
+                    self.delay as useconds_t,
                 );
             }
         }
     }
-
     fn key_down(&mut self, key: Key) -> crate::ResultType {
         if self.xdo.is_null() {
             return Ok(());
         }
         let string = CString::new(&*keysequence(key))?;
         unsafe {
-            libxdo_sys::xdo_send_keysequence_window_down(
-                self.xdo as *const _,
-                CURRENTWINDOW,
+            xdo_send_keysequence_window_down(
+                self.xdo,
+                CURRENT_WINDOW,
                 string.as_ptr(),
-                self.delay as libxdo_sys::useconds_t,
+                self.delay as useconds_t,
             );
         }
         Ok(())
     }
-
     fn key_up(&mut self, key: Key) {
         if self.xdo.is_null() {
             return;
         }
         if let Ok(string) = CString::new(&*keysequence(key)) {
             unsafe {
-                libxdo_sys::xdo_send_keysequence_window_up(
-                    self.xdo as *const _,
-                    CURRENTWINDOW,
+                xdo_send_keysequence_window_up(
+                    self.xdo,
+                    CURRENT_WINDOW,
                     string.as_ptr(),
-                    self.delay as libxdo_sys::useconds_t,
+                    self.delay as useconds_t,
                 );
             }
         }
     }
-
     fn key_click(&mut self, key: Key) {
         if self.xdo.is_null() {
             return;
         }
         if let Ok(string) = CString::new(&*keysequence(key)) {
             unsafe {
-                libxdo_sys::xdo_send_keysequence_window(
-                    self.xdo as *const _,
-                    CURRENTWINDOW,
+                xdo_send_keysequence_window(
+                    self.xdo,
+                    CURRENT_WINDOW,
                     string.as_ptr(),
-                    self.delay as libxdo_sys::useconds_t,
+                    self.delay as useconds_t,
                 );
             }
         }

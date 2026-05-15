@@ -355,7 +355,6 @@ Widget buildConnectionCard(Client client) {
         _CmHeader(client: client),
         client.type_() == ClientType.file ||
                 client.type_() == ClientType.portForward ||
-                client.type_() == ClientType.terminal ||
                 client.disconnected
             ? Offstage()
             : _PrivilegeBoard(client: client),
@@ -462,7 +461,23 @@ class _CmHeaderState extends State<_CmHeader>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildClientAvatar().marginOnly(right: 10.0),
+          Container(
+            width: 70,
+            height: 70,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: str2color(client.name),
+              borderRadius: BorderRadius.circular(15.0),
+            ),
+            child: Text(
+              client.name[0],
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 55,
+              ),
+            ),
+          ).marginOnly(right: 10.0),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -484,36 +499,7 @@ class _CmHeaderState extends State<_CmHeader>
                     "(${client.peerId})",
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
-                ),
-                if (client.type_() == ClientType.terminal)
-                  FittedBox(
-                    child: Text(
-                      translate("Terminal"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.file)
-                  FittedBox(
-                    child: Text(
-                      translate("File Transfer"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.type_() == ClientType.camera)
-                  FittedBox(
-                    child: Text(
-                      translate("View Camera"),
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                if (client.portForward.isNotEmpty)
-                  FittedBox(
-                    child: Text(
-                      "Port Forward: ${client.portForward}",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                SizedBox(height: 10.0),
+                ).marginOnly(bottom: 10.0),
                 FittedBox(
                     child: Row(
                   children: [
@@ -566,36 +552,6 @@ class _CmHeaderState extends State<_CmHeader>
 
   @override
   bool get wantKeepAlive => true;
-
-  Widget _buildClientAvatar() {
-    return buildAvatarWidget(
-          avatar: client.avatar,
-          size: 70,
-          borderRadius: 15,
-          fallback: _buildInitialAvatar(),
-        ) ??
-        _buildInitialAvatar();
-  }
-
-  Widget _buildInitialAvatar() {
-    return Container(
-      width: 70,
-      height: 70,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: str2color(client.name),
-        borderRadius: BorderRadius.circular(15.0),
-      ),
-      child: Text(
-        client.name.isNotEmpty ? client.name[0] : '?',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          fontSize: 55,
-        ),
-      ),
-    );
-  }
 }
 
 class _PrivilegeBoard extends StatefulWidget {

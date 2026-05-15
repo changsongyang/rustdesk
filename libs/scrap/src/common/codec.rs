@@ -18,17 +18,10 @@ use crate::{
     CodecFormat, EncodeInput, EncodeYuvFormat, ImageRgb, ImageTexture,
 };
 
-#[cfg(any(
-    feature = "hwcodec",
-    feature = "mediacodec",
-    feature = "vram",
-    target_os = "windows"
-))]
-use hbb_common::config::option2bool;
 use hbb_common::{
     anyhow::anyhow,
     bail,
-    config::{Config, PeerConfig},
+    config::{option2bool, Config, PeerConfig},
     lazy_static, log,
     message_proto::{
         supported_decoding::PreferCodec, video_frame, Chroma, CodecAbility, EncodedVideoFrames,

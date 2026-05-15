@@ -11,7 +11,6 @@ import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_home_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
-import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/mobile/widgets/dialog.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/printer_model.dart';
@@ -473,7 +472,8 @@ class _GeneralState extends State<_General> {
   }
 
   Widget other() {
-    final showAutoUpdate = isWindows && bind.mainIsInstalled();
+    final showAutoUpdate =
+        isWindows && bind.mainIsInstalled() && !bind.isCustomClient();
     final children = <Widget>[
       if (!isWeb && !bind.isIncomingOnly())
         _OptionCheckBox(context, 'Confirm before closing multiple tabs',
@@ -540,51 +540,11 @@ class _GeneralState extends State<_General> {
             'Capture screen using DirectX',
             kOptionDirectxCapture,
           ),
-        if (!bind.isIncomingOnly()) ...[
-          _OptionCheckBox(
-            context,
-            'Enable UDP hole punching',
-            kOptionEnableUdpPunch,
-            isServer: false,
-          ),
-          _OptionCheckBox(
-            context,
-            'Enable IPv6 P2P connection',
-            kOptionEnableIpv6Punch,
-            isServer: false,
-          ),
-        ],
       ],
     ];
-
-    // Add client-side wakelock option for desktop platforms
-    if (!bind.isIncomingOnly()) {
-      children.add(_OptionCheckBox(
-        context,
-        'keep-awake-during-outgoing-sessions-label',
-        kOptionKeepAwakeDuringOutgoingSessions,
-        isServer: false,
-      ));
-    }
-
     if (!isWeb && bind.mainShowOption(key: kOptionAllowLinuxHeadless)) {
       children.add(_OptionCheckBox(
           context, 'Allow linux headless', kOptionAllowLinuxHeadless));
-    }
-    if (!bind.isDisableAccount()) {
-      children.add(_OptionCheckBox(
-        context,
-        'note-at-conn-end-tip',
-        kOptionAllowAskForNoteAtEndOfConnection,
-        isServer: false,
-        optSetter: (key, value) async {
-          if (value && !gFFI.userModel.isLogin) {
-            final res = await loginDialog();
-            if (res != true) return;
-          }
-          await mainSetLocalBoolOption(key, value);
-        },
-      ));
     }
     return _Card(title: 'Other', children: children);
   }
@@ -835,8 +795,7 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 permissions(context),
                 password(context),
                 _Card(title: '2FA', children: [tfa()]),
-                if (!isChangeIdDisabled())
-                  _Card(title: 'ID', children: [changeId()]),
+                _Card(title: 'ID', children: [changeId()]),
                 more(context),
               ]),
             ),
@@ -1038,8 +997,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                 enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(context, 'Enable camera', kOptionEnableCamera,
                 enabled: enabled, fakeValue: fakeValue),
-            _OptionCheckBox(context, 'Enable terminal', kOptionEnableTerminal,
-                enabled: enabled, fakeValue: fakeValue),
             _OptionCheckBox(
                 context, 'Enable TCP tunneling', kOptionEnableTunnel,
                 enabled: enabled, fakeValue: fakeValue),
@@ -1102,10 +1059,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                                         .indexOf(kUsePermanentPassword)] &&
                                 (await bind.mainGetPermanentPassword())
                                     .isEmpty) {
-                              if (isChangePermanentPasswordDisabled()) {
-                                await callback();
-                                return;
-                              }
                               setPasswordDialog(notEmptyCallback: callback);
                             } else {
                               await callback();
@@ -1144,34 +1097,6 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                   ))
               .toList();
 
-          final isOptFixedNumOTP =
-              isOptionFixed(kOptionAllowNumericOneTimePassword);
-          final isNumOPTChangable = !isOptFixedNumOTP && tmpEnabled && !locked;
-          final numericOneTimePassword = GestureDetector(
-            child: InkWell(
-                child: Row(
-              children: [
-                Checkbox(
-                        value: model.allowNumericOneTimePassword,
-                        onChanged: isNumOPTChangable
-                            ? (bool? v) {
-                                model.switchAllowNumericOneTimePassword();
-                              }
-                            : null)
-                    .marginOnly(right: 5),
-                Expanded(
-                    child: Text(
-                  translate('Numeric one-time password'),
-                  style: TextStyle(
-                      color: disabledTextColor(context, isNumOPTChangable)),
-                ))
-              ],
-            )),
-            onTap: isNumOPTChangable
-                ? () => model.switchAllowNumericOneTimePassword()
-                : null,
-          ).marginOnly(left: _kContentHSubMargin - 5);
-
           final modeKeys = <String>[
             'password',
             'click',
@@ -1208,9 +1133,8 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
                     ],
                   ),
                   enabled: tmpEnabled && !locked),
-            if (usePassword) numericOneTimePassword,
             if (usePassword) radios[1],
-            if (usePassword && !isChangePermanentPasswordDisabled())
+            if (usePassword)
               _SubButton('Set permanent password', setPasswordDialog,
                   permEnabled && !locked),
             // if (usePassword)
@@ -1229,14 +1153,11 @@ class _SafetyState extends State<_Safety> with AutomaticKeepAliveClientMixin {
       ...directIp(context),
       whitelist(),
       ...autoDisconnect(context),
-      _OptionCheckBox(context, 'keep-awake-during-incoming-sessions-label',
-          kOptionKeepAwakeDuringIncomingSessions,
-          reverse: false, enabled: enabled),
       if (bind.mainIsInstalled())
         _OptionCheckBox(context, 'allow-only-conn-window-open-tip',
             'allow-only-conn-window-open',
             reverse: false, enabled: enabled),
-      if (bind.mainIsInstalled() && !isUnlockPinDisabled()) unlockPin()
+      if (bind.mainIsInstalled()) unlockPin()
     ]);
   }
 
@@ -1556,8 +1477,9 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
         bind.mainGetBuildinOption(key: kOptionHideServerSetting) == 'Y';
     final hideProxy =
         isWeb || bind.mainGetBuildinOption(key: kOptionHideProxySetting) == 'Y';
-    final hideWebSocket = isWeb ||
-        bind.mainGetBuildinOption(key: kOptionHideWebSocketSetting) == 'Y';
+    // final hideWebSocket = isWeb ||
+    //     bind.mainGetBuildinOption(key: kOptionHideWebSocketSetting) == 'Y';
+    final hideWebSocket = true;
 
     if (hideServer && hideProxy && hideWebSocket) {
       return Offstage();
@@ -1619,27 +1541,6 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
       );
     }
 
-    Widget switchWidget(IconData icon, String title, String tooltipMessage,
-            String optionKey) =>
-        listTile(
-          icon: icon,
-          title: title,
-          showTooltip: true,
-          tooltipMessage: tooltipMessage,
-          trailing: Switch(
-            value: mainGetBoolOptionSync(optionKey),
-            onChanged: locked || isOptionFixed(optionKey)
-                ? null
-                : (value) {
-                    mainSetBoolOption(optionKey, value);
-                    setState(() {});
-                  },
-          ),
-        );
-
-    final outgoingOnly = bind.isOutgoingOnly();
-
-    final divider = const Divider(height: 1, indent: 16, endIndent: 16);
     return _Card(
       title: 'Network',
       children: [
@@ -1651,65 +1552,33 @@ class _NetworkState extends State<_Network> with AutomaticKeepAliveClientMixin {
                 listTile(
                   icon: Icons.dns_outlined,
                   title: 'ID/Relay Server',
-                  onTap: () => showServerSettings(gFFI.dialogManager, setState),
+                  onTap: () => showServerSettings(gFFI.dialogManager),
                 ),
-              if (!hideProxy && !hideServer) divider,
+              if (!hideServer && (!hideProxy || !hideWebSocket))
+                Divider(height: 1, indent: 16, endIndent: 16),
               if (!hideProxy)
                 listTile(
                   icon: Icons.network_ping_outlined,
                   title: 'Socks5/Http(s) Proxy',
                   onTap: changeSocks5Proxy,
                 ),
-              if (!hideWebSocket && (!hideServer || !hideProxy)) divider,
+              if (!hideProxy && !hideWebSocket)
+                Divider(height: 1, indent: 16, endIndent: 16),
               if (!hideWebSocket)
-                switchWidget(
-                    Icons.web_asset_outlined,
-                    'Use WebSocket',
-                    '${translate('websocket_tip')}\n\n${translate('server-oss-not-support-tip')}',
-                    kOptionAllowWebSocket),
-              if (!isWeb)
-                futureBuilder(
-                  future: bind.mainIsUsingPublicServer(),
-                  hasData: (isUsingPublicServer) {
-                    if (isUsingPublicServer) {
-                      return Offstage();
-                    } else {
-                      return Column(
-                        children: [
-                          if (!hideServer || !hideProxy || !hideWebSocket)
-                            divider,
-                          switchWidget(
-                              Icons.no_encryption_outlined,
-                              'Allow insecure TLS fallback',
-                              'allow-insecure-tls-fallback-tip',
-                              kOptionAllowInsecureTLSFallback),
-                          if (!outgoingOnly) divider,
-                          if (!outgoingOnly)
-                            listTile(
-                              icon: Icons.lan_outlined,
-                              title: 'Disable UDP',
-                              showTooltip: true,
-                              tooltipMessage:
-                                  '${translate('disable-udp-tip')}\n\n${translate('server-oss-not-support-tip')}',
-                              trailing: Switch(
-                                value: bind.mainGetOptionSync(
-                                        key: kOptionDisableUdp) ==
-                                    'Y',
-                                onChanged:
-                                    locked || isOptionFixed(kOptionDisableUdp)
-                                        ? null
-                                        : (value) async {
-                                            await bind.mainSetOption(
-                                                key: kOptionDisableUdp,
-                                                value: value ? 'Y' : 'N');
-                                            setState(() {});
-                                          },
-                              ),
-                            ),
-                        ],
-                      );
-                    }
-                  },
+                listTile(
+                  icon: Icons.web_asset_outlined,
+                  title: 'Use WebSocket',
+                  showTooltip: true,
+                  tooltipMessage: 'websocket_tip',
+                  trailing: Switch(
+                    value: mainGetBoolOptionSync(kOptionAllowWebSocket),
+                    onChanged: locked
+                        ? null
+                        : (value) {
+                            mainSetBoolOption(kOptionAllowWebSocket, value);
+                            setState(() {});
+                          },
+                  ),
                 ),
             ],
           ),
@@ -1772,13 +1641,6 @@ class _DisplayState extends State<_Display> {
     }
 
     final groupValue = bind.mainGetUserDefaultOption(key: kOptionScrollStyle);
-
-    onEdgeScrollEdgeThicknessChanged(double value) async {
-      await bind.mainSetUserDefaultOption(
-          key: kOptionEdgeScrollEdgeThickness, value: value.round().toString());
-      setState(() {});
-    }
-
     return _Card(title: 'Default Scroll Style', children: [
       _Radio(context,
           value: kRemoteScrollStyleAuto,
@@ -1790,23 +1652,6 @@ class _DisplayState extends State<_Display> {
           groupValue: groupValue,
           label: 'Scrollbar',
           onChanged: isOptFixed ? null : onChanged),
-      if (!isWeb) ...[
-        _Radio(context,
-            value: kRemoteScrollStyleEdge,
-            groupValue: groupValue,
-            label: 'ScrollEdge',
-            onChanged: isOptFixed ? null : onChanged),
-        Offstage(
-            offstage: groupValue != kRemoteScrollStyleEdge,
-            child: EdgeThicknessControl(
-              value: double.tryParse(bind.mainGetUserDefaultOption(
-                      key: kOptionEdgeScrollEdgeThickness)) ??
-                  100.0,
-              onChanged: isOptionFixed(kOptionEdgeScrollEdgeThickness)
-                  ? null
-                  : onEdgeScrollEdgeThicknessChanged,
-            )),
-      ],
     ]);
   }
 
@@ -1848,9 +1693,9 @@ class _DisplayState extends State<_Display> {
   }
 
   Widget trackpadSpeed(BuildContext context) {
-    final initSpeed =
-        (int.tryParse(bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
-            kDefaultTrackpadSpeed);
+    final initSpeed = (int.tryParse(
+            bind.mainGetUserDefaultOption(key: kKeyTrackpadSpeed)) ??
+        kDefaultTrackpadSpeed);
     final curSpeed = SimpleWrapper(initSpeed);
     void onDebouncer(int v) {
       bind.mainSetUserDefaultOption(
@@ -2015,9 +1860,7 @@ class _AccountState extends State<_Account> {
 
   Widget accountAction() {
     return Obx(() => _Button(
-        gFFI.userModel.userName.value.isEmpty
-            ? 'Login'
-            : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})',
+        gFFI.userModel.userName.value.isEmpty ? 'Login' : 'Logout',
         () => {
               gFFI.userModel.userName.value.isEmpty
                   ? loginDialog()
@@ -2026,64 +1869,23 @@ class _AccountState extends State<_Account> {
   }
 
   Widget useInfo() {
+    text(String key, String value) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SelectionArea(child: Text('${translate(key)}: $value'))
+            .marginSymmetric(vertical: 4),
+      );
+    }
+
     return Obx(() => Offstage(
           offstage: gFFI.userModel.userName.value.isEmpty,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Builder(builder: (context) {
-              final avatarWidget = _buildUserAvatar();
-              return Row(
-                children: [
-                  if (avatarWidget != null) avatarWidget,
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          gFFI.userModel.displayNameOrUserName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        SelectionArea(
-                          child: Text(
-                            '@${gFFI.userModel.userName.value}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color:
-                                  Theme.of(context).textTheme.bodySmall?.color,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }),
+          child: Column(
+            children: [
+              text('Username', gFFI.userModel.userName.value),
+              // text('Group', gFFI.groupModel.groupName.value),
+            ],
           ),
         )).marginOnly(left: 18, top: 16);
-  }
-
-  Widget? _buildUserAvatar() {
-    // Resolve relative avatar path at display time
-    final avatar =
-        bind.mainResolveAvatarUrl(avatar: gFFI.userModel.avatar.value);
-    return buildAvatarWidget(
-      avatar: avatar,
-      size: 44,
-    );
   }
 }
 
@@ -2172,9 +1974,7 @@ class _PluginState extends State<_Plugin> {
 
   Widget accountAction() {
     return Obx(() => _Button(
-        gFFI.userModel.userName.value.isEmpty
-            ? 'Login'
-            : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})',
+        gFFI.userModel.userName.value.isEmpty ? 'Login' : 'Logout',
         () => {
               gFFI.userModel.userName.value.isEmpty
                   ? loginDialog()
@@ -2582,49 +2382,6 @@ class WaylandCard extends StatefulWidget {
 
 class _WaylandCardState extends State<WaylandCard> {
   final restoreTokenKey = 'wayland-restore-token';
-  static const _kClearShortcutsInhibitorEventKey =
-      'clear-gnome-shortcuts-inhibitor-permission-res';
-  final _clearShortcutsInhibitorFailedMsg = ''.obs;
-  // Don't show the shortcuts permission reset button for now.
-  // Users can change it manually:
-  //   "Settings" -> "Apps" -> "RustDesk" -> "Permissions" -> "Inhibit Shortcuts".
-  // For resetting(clearing) the permission from the portal permission store, you can
-  // use (replace <desktop-id> with the RustDesk desktop file ID):
-  //   busctl --user call org.freedesktop.impl.portal.PermissionStore \
-  //   /org/freedesktop/impl/portal/PermissionStore org.freedesktop.impl.portal.PermissionStore \
-  //   DeletePermission sss "gnome" "shortcuts-inhibitor" "<desktop-id>"
-  // On a native install this is typically "rustdesk.desktop"; on Flatpak it is usually
-  // the exported desktop ID derived from the Flatpak app-id (e.g. "com.rustdesk.RustDesk.desktop").
-  //
-  // We may add it back in the future if needed.
-  final showResetInhibitorPermission = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (showResetInhibitorPermission) {
-      platformFFI.registerEventHandler(
-          _kClearShortcutsInhibitorEventKey, _kClearShortcutsInhibitorEventKey,
-          (evt) async {
-        if (!mounted) return;
-        if (evt['success'] == true) {
-          setState(() {});
-        } else {
-          _clearShortcutsInhibitorFailedMsg.value =
-              evt['msg'] as String? ?? 'Unknown error';
-        }
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    if (showResetInhibitorPermission) {
-      platformFFI.unregisterEventHandler(
-          _kClearShortcutsInhibitorEventKey, _kClearShortcutsInhibitorEventKey);
-    }
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -2632,16 +2389,9 @@ class _WaylandCardState extends State<WaylandCard> {
       future: bind.mainHandleWaylandScreencastRestoreToken(
           key: restoreTokenKey, value: "get"),
       hasData: (restoreToken) {
-        final hasShortcutsPermission = showResetInhibitorPermission &&
-            bind.mainGetCommonSync(
-                    key: "has-gnome-shortcuts-inhibitor-permission") ==
-                "true";
-
         final children = [
           if (restoreToken.isNotEmpty)
             _buildClearScreenSelection(context, restoreToken),
-          if (hasShortcutsPermission)
-            _buildClearShortcutsInhibitorPermission(context),
         ];
         return Offstage(
           offstage: children.isEmpty,
@@ -2685,50 +2435,6 @@ class _WaylandCardState extends State<WaylandCard> {
             Theme.of(context).colorScheme.error.withOpacity(0.75)),
       ),
     );
-  }
-
-  Widget _buildClearShortcutsInhibitorPermission(BuildContext context) {
-    onConfirm() {
-      _clearShortcutsInhibitorFailedMsg.value = '';
-      bind.mainSetCommon(
-          key: "clear-gnome-shortcuts-inhibitor-permission", value: "");
-      gFFI.dialogManager.dismissAll();
-    }
-
-    showConfirmMsgBox() => msgBoxCommon(
-            gFFI.dialogManager,
-            'Confirmation',
-            Text(
-              translate('confirm-clear-shortcuts-inhibitor-permission-tip'),
-            ),
-            [
-              dialogButton('OK', onPressed: onConfirm),
-              dialogButton('Cancel',
-                  onPressed: () => gFFI.dialogManager.dismissAll())
-            ]);
-
-    return Column(children: [
-      Obx(
-        () => _clearShortcutsInhibitorFailedMsg.value.isEmpty
-            ? Offstage()
-            : Align(
-                alignment: Alignment.topLeft,
-                child: Text(_clearShortcutsInhibitorFailedMsg.value,
-                        style: DefaultTextStyle.of(context)
-                            .style
-                            .copyWith(color: Colors.red))
-                    .marginOnly(bottom: 10.0)),
-      ),
-      _Button(
-        'Reset keyboard shortcuts permission',
-        showConfirmMsgBox,
-        tip: 'clear-shortcuts-inhibitor-permission-tip',
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all<Color>(
-              Theme.of(context).colorScheme.error.withOpacity(0.75)),
-        ),
-      ),
-    ]);
   }
 }
 
@@ -2811,7 +2517,7 @@ Widget _lock(
                           ]).marginSymmetric(vertical: 2)),
                   onPressed: () async {
                     final unlockPin = bind.mainGetUnlockPin();
-                    if (unlockPin.isEmpty || isUnlockPinDisabled()) {
+                    if (unlockPin.isEmpty) {
                       bool checked = await callMainCheckSuperUserPermission();
                       if (checked) {
                         onUnlock();
