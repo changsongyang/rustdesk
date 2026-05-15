@@ -14,7 +14,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.MotionEvent
@@ -68,13 +67,6 @@ class FloatingWindowService : Service(), View.OnTouchListener {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (!Settings.canDrawOverlays(this)) {
-                    Log.d(logTag, "Overlay permission not granted, not creating floating window")
-                    stopSelf()
-                    return
-                }
-            }
             if (firstCreate) {
                 firstCreate = false
                 onFirstCreate(windowManager)
@@ -85,7 +77,6 @@ class FloatingWindowService : Service(), View.OnTouchListener {
             Log.d(logTag, "onCreate success")
         } catch (e: Exception) {
             Log.d(logTag, "onCreate failed: $e")
-            stopSelf()
         }
     }
 

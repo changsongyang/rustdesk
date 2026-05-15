@@ -65,8 +65,7 @@ data class Info(
 
 fun isSupportVoiceCall(): Boolean {
     // https://developer.android.com/reference/android/media/MediaRecorder.AudioSource#VOICE_COMMUNICATION
-    // VOICE_COMMUNICATION在Android 9+可用，系统音频捕获在Android 10+可用
-    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 }
 
 fun requestPermission(context: Context, type: String) {
