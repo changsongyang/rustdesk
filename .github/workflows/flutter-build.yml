@@ -1029,6 +1029,7 @@ jobs:
         shell: bash
         run: |
           PUB_CACHE_DIR="$HOME/.pub-cache/hosted/pub.dev"
+          GIT_CACHE_DIR="$HOME/.pub-cache/git"
           patch_namespace() {
             local plugin_dir="$1"
             local namespace="$2"
@@ -1043,6 +1044,11 @@ jobs:
           patch_namespace "$PUB_CACHE_DIR/device_info-2.0.3" "io.flutter.plugins.deviceinfo"
           patch_namespace "$PUB_CACHE_DIR/qr_code_scanner-1.0.1" "net.touchcapture.qr.flutterqr"
           patch_namespace "$PUB_CACHE_DIR/sqflite-2.2.0" "com.tekartik.sqflite"
+          # Patch git dependency: uni_links
+          UNILINKS_DIR=$(find "$GIT_CACHE_DIR" -maxdepth 1 -type d -name 'uni_links-*' | head -1)
+          if [ -n "$UNILINKS_DIR" ]; then
+            patch_namespace "$UNILINKS_DIR/uni_links" "com.builttoroam.unilinks"
+          fi
 
       - name: Build rustdesk
         shell: bash
@@ -1260,6 +1266,7 @@ jobs:
         shell: bash
         run: |
           PUB_CACHE_DIR="$HOME/.pub-cache/hosted/pub.dev"
+          GIT_CACHE_DIR="$HOME/.pub-cache/git"
           patch_namespace() {
             local plugin_dir="$1"
             local namespace="$2"
@@ -1274,6 +1281,11 @@ jobs:
           patch_namespace "$PUB_CACHE_DIR/device_info-2.0.3" "io.flutter.plugins.deviceinfo"
           patch_namespace "$PUB_CACHE_DIR/qr_code_scanner-1.0.1" "net.touchcapture.qr.flutterqr"
           patch_namespace "$PUB_CACHE_DIR/sqflite-2.2.0" "com.tekartik.sqflite"
+          # Patch git dependency: uni_links
+          UNILINKS_DIR=$(find "$GIT_CACHE_DIR" -maxdepth 1 -type d -name 'uni_links-*' | head -1)
+          if [ -n "$UNILINKS_DIR" ]; then
+            patch_namespace "$UNILINKS_DIR/uni_links" "com.builttoroam.unilinks"
+          fi
 
       - name: Build rustdesk
         shell: bash
