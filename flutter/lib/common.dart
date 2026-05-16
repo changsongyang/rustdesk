@@ -825,6 +825,10 @@ class OverlayDialogManager {
     BackButtonInterceptor.removeByName(tag);
   }
 
+  bool hasDialogWithTag(String tag) {
+    return _dialogs.containsKey(tag);
+  }
+
   Future<T?> show<T>(DialogBuilder builder,
       {bool clickMaskDismiss = false,
       bool backDismiss = false,
