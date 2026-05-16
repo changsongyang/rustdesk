@@ -120,7 +120,7 @@ lazy_static::lazy_static! {
     };
 
     static ref PRIVACY_MODE: Arc<Mutex<Option<Box<dyn PrivacyMode>>>> = {
-        let mut cur_impl = get_option("privacy-mode-impl-key".to_owned());
+        let mut cur_impl = get_option("privacy-mode-impl-key");
         if !get_supported_privacy_mode_impl().iter().any(|(k, _)| k == &cur_impl) {
             cur_impl = DEFAULT_PRIVACY_MODE_IMPL.to_owned();
         }
@@ -173,7 +173,8 @@ pub fn init() -> Option<ResultType<()>> {
 
 #[inline]
 pub fn clear() -> Option<()> {
-    Some(PRIVACY_MODE.lock().unwrap().as_mut()?.clear())
+    let _: () = PRIVACY_MODE.lock().unwrap().as_mut()?.clear();
+    Some(())
 }
 
 #[inline]
@@ -197,7 +198,7 @@ fn get_supported_impl(impl_key: &str) -> String {
     };
     // TODO: Is it a good idea to use fallback here? Because user do not know the fallback.
     // fallback
-    let mut cur_impl = get_option("privacy-mode-impl-key".to_owned());
+    let mut cur_impl = get_option("privacy-mode-impl-key");
     if !get_supported_privacy_mode_impl()
         .iter()
         .any(|(k, _)| k == &cur_impl)
@@ -222,7 +223,7 @@ fn is_async_privacy_mode() -> bool {
         .lock()
         .unwrap()
         .as_ref()
-        .map_or(false, |m| m.is_async_privacy_mode())
+        .is_some_and(|m| m.is_async_privacy_mode())
 }
 
 #[inline]

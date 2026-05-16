@@ -36,7 +36,7 @@ use crate::{
     ui_interface::{get_builtin_option, resolve_avatar_url, use_texture_render},
     ui_session_interface::{InvokeUiSession, Session},
 };
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 use crate::{clipboard::check_clipboard_files, clipboard_file::unix_file_clip};
 pub use file_trait::FileManager;
 #[cfg(not(feature = "flutter"))]
@@ -75,9 +75,10 @@ use hbb_common::{
 pub use helper::*;
 use scrap::{
     codec::Decoder,
-    record::{Recorder, RecorderContext},
     CodecFormat, ImageFormat, ImageRgb, ImageTexture,
 };
+#[cfg(not(target_os = "android"))]
+use scrap::record::{Recorder, RecorderContext};
 
 #[cfg(not(target_os = "ios"))]
 use crate::clipboard::CLIPBOARD_INTERVAL;
@@ -1107,7 +1108,7 @@ impl ClientClipboardHandler {
 
     fn check_clipboard(&mut self) {
         if CLIPBOARD_STATE.lock().unwrap().running {
-            #[cfg(feature = "unix-file-copy-paste")]
+            #[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
             if let Some(urls) = check_clipboard_files(&mut self.ctx, ClipboardSide::Client, false) {
                 if !urls.is_empty() {
                     #[cfg(target_os = "macos")]
@@ -1541,7 +1542,10 @@ pub struct VideoHandler {
     decoder: Decoder,
     pub rgb: ImageRgb,
     pub texture: ImageTexture,
+    #[cfg(not(target_os = "android"))]
     recorder: Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    recorder: (),
     record: bool,
     _display: usize, // useful for debug
     fail_counter: usize,
@@ -1619,6 +1623,7 @@ impl VideoHandler {
                     }
                 }
                 self.first_frame = false;
+                #[cfg(not(target_os = "android"))]
                 if self.record {
                     self.recorder.lock().unwrap().as_mut().map(|r| {
                         let (w, h) = if *pixelbuffer {
@@ -1651,6 +1656,7 @@ impl VideoHandler {
     }
 
     /// Start or stop screen record.
+    #[cfg(not(target_os = "android"))]
     pub fn record_screen(&mut self, start: bool, id: String, display_idx: usize, camera: bool) {
         self.record = false;
         if start {
@@ -1668,6 +1674,11 @@ impl VideoHandler {
         }
 
         self.record = start;
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn record_screen(&mut self, _start: bool, _id: String, _display_idx: usize, _camera: bool) {
+        self.record = false;
     }
 }
 

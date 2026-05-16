@@ -889,10 +889,20 @@ class FfiModel with ChangeNotifier {
   handleMsgBox(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
     if (parent.target == null) return;
     final dialogManager = parent.target!.dialogManager;
-    final type = evt['type'];
-    final title = evt['title'];
-    final text = evt['text'];
-    final link = evt['link'];
+    final type = evt['type'] as String? ?? '';
+    final title = evt['title'] as String? ?? '';
+    final text = evt['text'] as String? ?? '';
+    final link = evt['link'] as String? ?? '';
+
+    // Android-specific optimization: Ensure auth dialogs are always shown
+    // even when waitForFirstImage is false
+    final authTypes = {'input-password', 're-input-password', 'input-2fa', 
+                       'session-login', 'session-re-login', 'session-login-password',
+                       'terminal-admin-login', 'terminal-admin-login-password'};
+    if (isAndroid && authTypes.contains(type)) {
+      // Auth events should always be processed on Android
+      // regardless of waitForFirstImage state
+    }
 
     // Disable relative mouse mode on any error-type message to ensure cursor is released.
     // This includes connection errors, session-ending messages, elevation errors, etc.
@@ -1138,9 +1148,19 @@ class FfiModel with ChangeNotifier {
       tag: '$sessionId-waiting-for-image',
     );
     waitForImageDialogShow.value = true;
+    
+    // Android optimization: Only auto-submit empty password if no auth dialog is showing
+    // This prevents the race condition where password dialog appears after empty password is submitted
     waitForImageTimer = Timer(Duration(milliseconds: 1500), () {
       if (waitForFirstImage.isTrue && !isRefreshing) {
-        bind.sessionInputOsPassword(sessionId: sessionId, value: '');
+        // Check if any auth dialog is currently showing before auto-submitting
+        final hasAuthDialog = dialogManager.hasDialogWithTag('$sessionId-password') ||
+                             dialogManager.hasDialogWithTag('$sessionId-login') ||
+                             dialogManager.hasDialogWithTag('$sessionId-password-login') ||
+                             dialogManager.hasDialogWithTag('$sessionId-auth');
+        if (!hasAuthDialog) {
+          bind.sessionInputOsPassword(sessionId: sessionId, value: '');
+        }
       }
     });
     bind.sessionOnWaitingForImageDialogShow(sessionId: sessionId);
@@ -3769,7 +3789,7 @@ class FFI {
     // CAUTION: `sessionStart()` and `sessionStartWithDisplays()` are an async functions.
     // Though the stream is returned immediately, the stream may not be ready.
     // Any operations that depend on the stream should be carefully handled.
-    late final Stream<EventToUI> stream;
+    late final Stream<String> stream;
     if (isNewPeer || display == null || displays == null) {
       stream = bind.sessionStart(sessionId: sessionId, id: id);
     } else {
@@ -3822,8 +3842,23 @@ class FFI {
         isToNewWindowNotified.value = true;
       }
       () async {
-        if (message is EventToUI_Event) {
-          if (message.field0 == "close") {
+        // Parse JSON string from Rust
+        List<dynamic>? eventData;
+        try {
+          eventData = json.decode(message) as List<dynamic>;
+        } catch (e) {
+          debugPrint('json.decode fail: $e, message: $message');
+          return;
+        }
+        
+        if (eventData == null || eventData.isEmpty) {
+          return;
+        }
+        
+        final int eventType = eventData[0] as int;
+        if (eventType == 0) { // EventToUI::Event
+          final String eventStr = eventData[1] as String;
+          if (eventStr == "close") {
             closed = true;
             debugPrint('Exit session event loop');
             return;
@@ -3831,15 +3866,15 @@ class FFI {
 
           Map<String, dynamic>? event;
           try {
-            event = json.decode(message.field0);
+            event = json.decode(eventStr);
           } catch (e) {
-            debugPrint('json.decode fail1(): $e, ${message.field0}');
+            debugPrint('json.decode fail1(): $e, $eventStr');
           }
           if (event != null) {
             await cb(event);
           }
-        } else if (message is EventToUI_Rgba) {
-          final display = message.field0;
+        } else if (eventType == 1) { // EventToUI::Rgba
+          final display = eventData[1] as int;
           // Fetch the image buffer from rust codes.
           final sz = platformFFI.getRgbaSize(sessionId, display);
           if (sz == 0) {
@@ -3853,9 +3888,9 @@ class FFI {
           } else {
             platformFFI.nextRgba(sessionId, display);
           }
-        } else if (message is EventToUI_Texture) {
-          final display = message.field0;
-          final gpuTexture = message.field1;
+        } else if (eventType == 2) { // EventToUI::Texture
+          final display = eventData[1] as int;
+          final gpuTexture = eventData[2] as bool;
           debugPrint(
               "EventToUI_Texture display:$display, gpuTexture:$gpuTexture");
           if (gpuTexture && !hasGpuTextureRender) {

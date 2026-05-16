@@ -886,6 +886,20 @@ _connectDialog(
     });
   }
 
+  // Use consistent tag for auth dialogs to allow detection
+  final hasPassword = passwordController != null;
+  final hasLogin = osUsernameController != null;
+  String dialogTag;
+  if (hasPassword && hasLogin) {
+    dialogTag = '$sessionId-password-login';
+  } else if (hasPassword) {
+    dialogTag = '$sessionId-password';
+  } else if (hasLogin) {
+    dialogTag = '$sessionId-login';
+  } else {
+    dialogTag = '$sessionId-auth';
+  }
+
   dialogManager.dismissAll();
   dialogManager.show((setState, close, context) {
     cancel() {
@@ -1056,7 +1070,7 @@ _connectDialog(
       onSubmit: submit,
       onCancel: cancel,
     );
-  });
+  }, tag: dialogTag);
 }
 
 void showWaitUacDialog(

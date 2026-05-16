@@ -178,7 +178,7 @@ pub mod rustdesk_idd {
             if let Err(e) = virtual_display::plug_in_monitor(index) {
                 bail!("Plug in monitor failed {}", e);
             }
-            if let Err(e) = virtual_display::update_monitor_modes(index, &modes) {
+            if let Err(e) = virtual_display::update_monitor_modes(index, modes) {
                 log::error!("Update monitor modes failed {}", e);
             }
             Ok(())
@@ -227,7 +227,7 @@ pub mod rustdesk_idd {
     fn get_new_device_name(device_names: &HashSet<String>) -> String {
         for _ in 0..3 {
             let device_names_af: HashSet<String> = get_device_names().into_iter().collect();
-            let diff_names: Vec<_> = device_names_af.difference(&device_names).collect();
+            let diff_names: Vec<_> = device_names_af.difference(device_names).collect();
             if diff_names.len() == 1 {
                 return diff_names[0].clone();
             } else if diff_names.len() > 1 {
@@ -454,7 +454,7 @@ pub mod amyuni_idd {
 
         log::info!("Uninstalling driver by SetupAPI");
         let mut reboot_required = false;
-        let _ = unsafe { win_device::uninstall_driver(HARDWARE_ID, &mut reboot_required)? };
+        unsafe { win_device::uninstall_driver(HARDWARE_ID, &mut reboot_required)? };
         Ok(())
     }
 
@@ -517,8 +517,7 @@ pub mod amyuni_idd {
 
         log::info!("Installing driver by SetupAPI");
         let mut reboot_required = false;
-        let _ =
-            unsafe { win_device::install_driver(&inf_path, HARDWARE_ID, &mut reboot_required)? };
+        unsafe { win_device::install_driver(&inf_path, HARDWARE_ID, &mut reboot_required)? };
         *is_async = false;
         Ok(())
     }
@@ -617,7 +616,7 @@ pub mod amyuni_idd {
                     for name in
                         windows::get_device_names(Some(super::AMYUNI_IDD_DEVICE_STRING)).iter()
                     {
-                        crate::platform::change_resolution(&name, width, height).ok();
+                        crate::platform::change_resolution(name, width, height).ok();
                     }
                     break;
                 }
@@ -771,7 +770,7 @@ mod windows {
         } else if name.len() > device_name.len() {
             false
         } else {
-            &device_name[..name.len()] == name && device_name.as_bytes()[name.len() as usize] == 0
+            &device_name[..name.len()] == name && device_name.as_bytes()[name.len()] == 0
         }
     }
 

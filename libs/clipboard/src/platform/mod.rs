@@ -12,7 +12,7 @@ pub fn create_cliprdr_context(
     Ok(boxed)
 }
 
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", any(target_os = "linux", target_os = "macos")))]
 pub mod unix;
 
 #[cfg(all(feature = "unix-file-copy-paste", target_os = "macos"))]

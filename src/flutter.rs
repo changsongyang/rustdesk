@@ -125,7 +125,7 @@ pub extern "C" fn handle_applicationShouldOpenUntitledFile() {
 #[no_mangle]
 pub extern "C" fn rustdesk_core_main_args(args_len: *mut c_int) -> *mut *mut c_char {
     unsafe { std::ptr::write(args_len, 0) };
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    #[cfg(not(any(target_os = "android", target_os = "ios", feature = "cli")))]
     {
         if let Some(args) = crate::core_main::core_main() {
             return rust_args_to_c_args(args, args_len);
@@ -199,7 +199,7 @@ pub unsafe extern "C" fn get_rustdesk_app_name(buffer: *mut u16, length: i32) ->
 
 #[derive(Default)]
 struct SessionHandler {
-    event_stream: Option<StreamSink<EventToUI>>,
+    event_stream: Option<StreamSink<String>>,
     // displays of current session.
     // We need this variable to check if the display is in use before pushing rgba to flutter.
     displays: Vec<usize>,
@@ -582,7 +582,7 @@ impl FlutterHandler {
             }
             if push {
                 if let Some(stream) = &session.event_stream {
-                    stream.add(EventToUI::Event(out.clone()));
+                    stream.add(EventToUI::Event(out.clone()).to_string());
                 }
             }
         }
@@ -884,7 +884,7 @@ impl InvokeUiSession for FlutterHandler {
         for (_, session) in self.session_handlers.read().unwrap().iter() {
             if session.renderer.on_texture(display, texture) {
                 if let Some(stream) = &session.event_stream {
-                    stream.add(EventToUI::Texture(display, true));
+                    stream.add(EventToUI::Texture(display, true).to_string());
                 }
             }
         }
@@ -1230,7 +1230,7 @@ impl FlutterHandler {
                 }
             }
             if let Some(stream) = &h.event_stream {
-                stream.add(EventToUI::Rgba(display));
+                stream.add(EventToUI::Rgba(display).to_string());
                 is_sent = true;
             }
         }
@@ -1260,7 +1260,7 @@ impl FlutterHandler {
             if use_texture_render || session.displays.len() > 1 {
                 if session.renderer.on_rgba(display, rgba) {
                     if let Some(stream) = &session.event_stream {
-                        stream.add(EventToUI::Texture(display, false));
+                        stream.add(EventToUI::Texture(display, false).to_string());
                     }
                 }
             }
@@ -1382,7 +1382,7 @@ pub fn session_add(
 pub fn session_start_(
     session_id: &SessionID,
     id: &str,
-    event_stream: StreamSink<EventToUI>,
+    event_stream: StreamSink<String>,
 ) -> ResultType<()> {
     // is_connected is used to indicate whether to start a peer connection. For two cases:
     // 1. "Move tab to new window"
@@ -1427,9 +1427,9 @@ pub fn session_start_(
 }
 
 #[inline]
-fn try_send_close_event(event_stream: &Option<StreamSink<EventToUI>>) {
+fn try_send_close_event(event_stream: &Option<StreamSink<String>>) {
     if let Some(stream) = &event_stream {
-        stream.add(EventToUI::Event("close".to_owned()));
+        stream.add(EventToUI::Event("close".to_owned()).to_string());
     }
 }
 
@@ -2043,7 +2043,7 @@ pub mod sessions {
 
     lazy_static::lazy_static! {
         // peer -> peer session, peer session -> ui sessions
-        static ref SESSIONS: RwLock<HashMap<(String, ConnType), FlutterSession>> = Default::default();
+        pub static ref SESSIONS: RwLock<HashMap<(String, ConnType), FlutterSession>> = Default::default();
     }
 
     #[inline]

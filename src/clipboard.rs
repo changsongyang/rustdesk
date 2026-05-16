@@ -126,7 +126,7 @@ pub fn update_clipboard_files(files: Vec<String>, side: ClipboardSide) {
     }
 }
 
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(feature = "unix-file-copy-paste", not(target_os = "windows")))]
 pub fn try_empty_clipboard_files(_side: ClipboardSide, _conn_id: i32) {
     std::thread::spawn(move || {
         let mut ctx = CLIPBOARD_CTX.lock().unwrap();
@@ -430,6 +430,8 @@ impl ClipboardContext {
                 let is_kde_x11 = hbb_common::platform::linux::is_kde_session()
                     && crate::platform::linux::is_x11();
                 #[cfg(target_os = "macos")]
+                let is_kde_x11 = false;
+                #[cfg(target_os = "windows")]
                 let is_kde_x11 = false;
                 let clear_holder_text = if is_kde_x11 {
                     "RustDesk placeholder to clear the file clipboard"
