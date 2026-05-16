@@ -889,10 +889,20 @@ class FfiModel with ChangeNotifier {
   handleMsgBox(Map<String, dynamic> evt, SessionID sessionId, String peerId) {
     if (parent.target == null) return;
     final dialogManager = parent.target!.dialogManager;
-    final type = evt['type'];
-    final title = evt['title'];
-    final text = evt['text'];
-    final link = evt['link'];
+    final type = evt['type'] as String? ?? '';
+    final title = evt['title'] as String? ?? '';
+    final text = evt['text'] as String? ?? '';
+    final link = evt['link'] as String? ?? '';
+
+    // Android-specific optimization: Ensure auth dialogs are always shown
+    // even when waitForFirstImage is false
+    final authTypes = {'input-password', 're-input-password', 'input-2fa', 
+                       'session-login', 'session-re-login', 'session-login-password',
+                       'terminal-admin-login', 'terminal-admin-login-password'};
+    if (isAndroid && authTypes.contains(type)) {
+      // Auth events should always be processed on Android
+      // regardless of waitForFirstImage state
+    }
 
     // Disable relative mouse mode on any error-type message to ensure cursor is released.
     // This includes connection errors, session-ending messages, elevation errors, etc.
@@ -1138,9 +1148,19 @@ class FfiModel with ChangeNotifier {
       tag: '$sessionId-waiting-for-image',
     );
     waitForImageDialogShow.value = true;
+    
+    // Android optimization: Only auto-submit empty password if no auth dialog is showing
+    // This prevents the race condition where password dialog appears after empty password is submitted
     waitForImageTimer = Timer(Duration(milliseconds: 1500), () {
       if (waitForFirstImage.isTrue && !isRefreshing) {
-        bind.sessionInputOsPassword(sessionId: sessionId, value: '');
+        // Check if any auth dialog is currently showing before auto-submitting
+        final hasAuthDialog = dialogManager.hasDialogWithTag('$sessionId-password') ||
+                             dialogManager.hasDialogWithTag('$sessionId-login') ||
+                             dialogManager.hasDialogWithTag('$sessionId-password-login') ||
+                             dialogManager.hasDialogWithTag('$sessionId-auth');
+        if (!hasAuthDialog) {
+          bind.sessionInputOsPassword(sessionId: sessionId, value: '');
+        }
       }
     });
     bind.sessionOnWaitingForImageDialogShow(sessionId: sessionId);

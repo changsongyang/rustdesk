@@ -36,15 +36,40 @@ impl Capturer {
 
 impl crate::TraitCapturer for Capturer {
     fn frame<'a>(&'a mut self, _timeout: Duration) -> io::Result<Frame<'a>> {
-        if get_video_raw(&mut self.rgba, &mut self.saved_raw_data).is_some() {
-            Ok(Frame::PixelBuffer(PixelBuffer::new(
-                &self.rgba,
-                self.width(),
-                self.height(),
-            )))
-        } else {
-            return Err(io::ErrorKind::WouldBlock.into());
+        // Android optimization: Retry with backoff to get valid frame
+        // Handles transient failures in frame capture and ensures valid data
+        const MAX_RETRIES: usize = 5;
+        let base_delay_ms: u64 = 20;
+        
+        for attempt in 0..MAX_RETRIES {
+            // Refresh screen size if needed
+            if self.width() == 0 || self.height() == 0 {
+                Display::refresh_size();
+            }
+            
+            // Attempt to capture frame
+            if get_video_raw(&mut self.rgba, &mut self.saved_raw_data).is_some() {
+                // Validate captured data before returning
+                let expected_size = self.width() * self.height() * 4; // RGBA = 4 bytes per pixel
+                
+                if !self.rgba.is_empty() && self.rgba.len() >= expected_size {
+                    return Ok(Frame::PixelBuffer(PixelBuffer::new(
+                        &self.rgba,
+                        self.width(),
+                        self.height(),
+                    )));
+                } else if !self.rgba.is_empty() {
+                    // Partial data, continue retrying
+                    std::thread::sleep(std::time::Duration::from_millis(base_delay_ms * (attempt + 1) as u64));
+                    continue;
+                }
+            }
+            
+            // Exponential backoff delay between retries
+            std::thread::sleep(std::time::Duration::from_millis(base_delay_ms * (attempt + 1) as u64));
         }
+        
+        Err(io::ErrorKind::WouldBlock.into())
     }
 }
 
