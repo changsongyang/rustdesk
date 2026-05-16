@@ -579,8 +579,13 @@ class ServerModel with ChangeNotifier {
       }
       scrollToBottom();
       notifyListeners();
-      if (isAndroid && !client.authorized) showLoginDialog(client);
-      if (isAndroid) androidUpdatekeepScreenOn();
+      
+      // Android-specific: Ensure auth dialog is shown reliably
+      // Delay to allow UI to be fully ready before showing dialog
+      if (isAndroid) {
+        androidUpdatekeepScreenOn();
+        _showAndroidAuthDialog(client);
+      }
     } catch (e) {
       debugPrint("Failed to call loginRequest,error:$e");
     }
@@ -780,6 +785,40 @@ class ServerModel with ChangeNotifier {
     } catch (e) {
       debugPrint("updateVoiceCallState failed: $e");
     }
+  }
+
+  /// Android-specific: Show authentication dialog with retry mechanism
+  /// Ensures auth dialog is shown even when UI is not fully ready
+  void _showAndroidAuthDialog(Client client) {
+    // Retry up to 3 times with increasing delays
+    const retryDelays = [500, 1000, 2000];
+    
+    void tryShow(int attempt) {
+      if (client.disconnected) return;
+      
+      if (client.authorized) {
+        // Already authorized, no need to show dialog
+        return;
+      }
+      
+      if (attempt >= retryDelays.length) {
+        debugPrint("Failed to show auth dialog after ${retryDelays.length} attempts");
+        return;
+      }
+      
+      Future.delayed(Duration(milliseconds: retryDelays[attempt]), () {
+        if (!client.disconnected && !client.authorized) {
+          try {
+            showLoginDialog(client);
+          } catch (e) {
+            debugPrint("Error showing auth dialog (attempt ${attempt + 1}): $e");
+            tryShow(attempt + 1);
+          }
+        }
+      });
+    }
+    
+    tryShow(0);
   }
 
   void androidUpdatekeepScreenOn() async {
