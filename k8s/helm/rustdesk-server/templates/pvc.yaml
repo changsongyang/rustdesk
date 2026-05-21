@@ -1,0 +1,46 @@
+{{- if .Values.persistence.enabled }}
+{{- if .Values.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-data
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: data
+  {{- with .Values.persistence.data.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.data.accessMode }}
+  storageClassName: {{ .Values.persistence.data.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.data.size }}
+{{- end }}
+
+{{- if .Values.persistence.logs.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-logs
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logs
+  {{- with .Values.persistence.logs.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.logs.accessMode }}
+  storageClassName: {{ .Values.persistence.logs.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.logs.size }}
+{{- end }}
+{{- end }}

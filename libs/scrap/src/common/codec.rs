@@ -7,7 +7,7 @@ use std::{
 
 #[cfg(feature = "hwcodec")]
 use crate::hwcodec::*;
-#[cfg(feature = "mediacodec")]
+#[cfg(all(feature = "mediacodec", target_os = "android"))]
 use crate::mediacodec::{MediaCodecDecoder, H264_DECODER_SUPPORT, H265_DECODER_SUPPORT};
 #[cfg(feature = "vram")]
 use crate::vram::*;
@@ -20,7 +20,7 @@ use crate::{
 
 #[cfg(any(
     feature = "hwcodec",
-    feature = "mediacodec",
+    all(feature = "mediacodec", target_os = "android"),
     feature = "vram",
     target_os = "windows"
 ))]
@@ -112,9 +112,9 @@ pub struct Decoder {
     h264_vram: Option<VRamDecoder>,
     #[cfg(feature = "vram")]
     h265_vram: Option<VRamDecoder>,
-    #[cfg(feature = "mediacodec")]
+    #[cfg(all(feature = "mediacodec", target_os = "android"))]
     h264_media_codec: MediaCodecDecoder,
-    #[cfg(feature = "mediacodec")]
+    #[cfg(all(feature = "mediacodec", target_os = "android"))]
     h265_media_codec: MediaCodecDecoder,
     format: CodecFormat,
     valid: bool,
@@ -470,7 +470,7 @@ impl Decoder {
                 0
             };
         }
-        #[cfg(feature = "mediacodec")]
+        #[cfg(all(feature = "mediacodec", target_os = "android"))]
         if enable_hwcodec_option() {
             decoding.ability_h264 =
                 if H264_DECODER_SUPPORT.load(std::sync::atomic::Ordering::SeqCst) {
@@ -505,7 +505,7 @@ impl Decoder {
         let (mut h264_ram, mut h265_ram) = (None, None);
         #[cfg(feature = "vram")]
         let (mut h264_vram, mut h265_vram) = (None, None);
-        #[cfg(feature = "mediacodec")]
+        #[cfg(all(feature = "mediacodec", target_os = "android"))]
         let (mut h264_media_codec, mut h265_media_codec) = (None, None);
         let mut valid = false;
 
@@ -552,7 +552,7 @@ impl Decoder {
                     }
                     valid = h264_ram.is_some();
                 }
-                #[cfg(feature = "mediacodec")]
+                #[cfg(all(feature = "mediacodec", target_os = "android"))]
                 if !valid && enable_hwcodec_option() {
                     h264_media_codec = MediaCodecDecoder::new(format);
                     if h264_media_codec.is_none() {
@@ -578,7 +578,7 @@ impl Decoder {
                     }
                     valid = h265_ram.is_some();
                 }
-                #[cfg(feature = "mediacodec")]
+                #[cfg(all(feature = "mediacodec", target_os = "android"))]
                 if !valid && enable_hwcodec_option() {
                     h265_media_codec = MediaCodecDecoder::new(format);
                     if h265_media_codec.is_none() {
@@ -608,9 +608,9 @@ impl Decoder {
             h264_vram,
             #[cfg(feature = "vram")]
             h265_vram,
-            #[cfg(feature = "mediacodec")]
+            #[cfg(all(feature = "mediacodec", target_os = "android"))]
             h264_media_codec,
-            #[cfg(feature = "mediacodec")]
+            #[cfg(all(feature = "mediacodec", target_os = "android"))]
             h265_media_codec,
             format,
             valid,
@@ -686,7 +686,7 @@ impl Decoder {
                 }
                 Err(anyhow!("don't support h265!"))
             }
-            #[cfg(feature = "mediacodec")]
+            #[cfg(all(feature = "mediacodec", target_os = "android"))]
             video_frame::Union::H264s(h264s) => {
                 *chroma = Some(Chroma::I420);
                 if let Some(decoder) = &mut self.h264_media_codec {
@@ -695,7 +695,7 @@ impl Decoder {
                     Err(anyhow!("don't support h264!"))
                 }
             }
-            #[cfg(feature = "mediacodec")]
+            #[cfg(all(feature = "mediacodec", target_os = "android"))]
             video_frame::Union::H265s(h265s) => {
                 *chroma = Some(Chroma::I420);
                 if let Some(decoder) = &mut self.h265_media_codec {
@@ -803,7 +803,7 @@ impl Decoder {
     }
 
     // rgb [in/out] fmt and stride must be set in ImageRgb
-    #[cfg(feature = "mediacodec")]
+    #[cfg(all(feature = "mediacodec", target_os = "android"))]
     fn handle_mediacodec_video_frame(
         decoder: &mut MediaCodecDecoder,
         frames: &EncodedVideoFrames,
@@ -847,7 +847,10 @@ impl Decoder {
     }
 }
 
-#[cfg(any(feature = "hwcodec", feature = "mediacodec"))]
+#[cfg(any(
+    feature = "hwcodec",
+    all(feature = "mediacodec", target_os = "android")
+))]
 pub fn enable_hwcodec_option() -> bool {
     use hbb_common::config::keys::OPTION_ENABLE_HWCODEC;
 

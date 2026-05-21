@@ -1,0 +1,31 @@
+# RustDesk 提交消息模板
+# 请遵循 Conventional Commits 规范
+# 格式: <type>(<scope>): <description>
+# 
+# 类型列表:
+#   feat:     新功能
+#   fix:      修复 bug
+#   docs:     文档更新
+#   style:    代码格式（不影响代码逻辑）
+#   refactor: 重构（既不添加功能也不修复 bug）
+#   perf:     性能优化
+#   test:     添加或更新测试
+#   chore:    构建过程或辅助工具的变动
+#   build:    构建系统或依赖变更
+#   ci:       CI/CD 配置变更
+#   revert:   撤销提交
+
+# 示例:
+# feat(hwcodec): 添加 FFmpeg 7.x 兼容性支持
+# fix(build): 修复 Linux Sciter 依赖问题
+# docs: 更新 BRANCHING.md
+
+# --------------------------
+# 删除此行并输入您的提交消息
+# --------------------------
+
+# 可选: 添加详细描述
+# 
+# 可选: 添加关闭的 issue
+# Closes #1234
+# Fixes #5678

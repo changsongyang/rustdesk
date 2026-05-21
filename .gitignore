@@ -5,7 +5,6 @@
 .DS_Store
 .env
 libsciter-gtk.so
-src/ui/inline.rs
 extractor
 __pycache__
 src/version.rs
@@ -56,3 +55,6 @@ vcpkg_installed
 flutter/lib/generated_plugin_registrant.dart
 libsciter.dylib
 flutter/web/
+/项目文档
+# Trae IDE
+# .trae/

@@ -1,0 +1,158 @@
+groups:
+  - name: rustdesk_server_alerts
+    interval: 30s
+    rules:
+      - alert: RustDeskServerDown
+        expr: up{job="rustdesk-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 服务宕机"
+          description: "RustDesk Server 已经宕机超过 2 分钟，当前状态: {{ $value }}"
+
+      - alert: RustDeskServerHighCPU
+        expr: rate(process_cpu_seconds_total{job="rustdesk-server"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server CPU 使用率过高"
+          description: "RustDesk Server CPU 使用率超过 80%，当前值: {{ $value | humanizePercentage }}"
+
+      - alert: RustDeskServerHighMemory
+        expr: (process_resident_memory_bytes{job="rustdesk-server"} / process_max_memory_bytes{job="rustdesk-server"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 内存使用率过高"
+          description: "RustDesk Server 内存使用率超过 90%，当前值: {{ $value | humanizePercentage }}"
+
+      - alert: RustDeskServerHighConnectionCount
+        expr: rustdesk_active_connections > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 连接数过高"
+          description: "RustDesk Server 活跃连接数超过 1000，当前值: {{ $value }}"
+
+      - alert: RustDeskServerHighLatency
+        expr: histogram_quantile(0.95, rate(rustdesk_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 请求延迟过高"
+          description: "RustDesk Server 95% 请求延迟超过 1 秒，当前值: {{ $value }}s"
+
+      - alert: RustDeskServerHighErrorRate
+        expr: rate(rustdesk_requests_total{status=~"5.."}[5m]) / rate(rustdesk_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 错误率过高"
+          description: "RustDesk Server 5xx 错误率超过 5%，当前值: {{ $value | humanizePercentage }}"
+
+      - alert: RustDeskServerHighBandwidth
+        expr: rate(rustdesk_network_bytes_total[5m]) > 1e9
+        for: 5m
+        labels:
+          severity: info
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Server 带宽使用较高"
+          description: "RustDesk Server 网络带宽使用率较高，当前值: {{ $value | humanize }}bytes/s"
+
+  - name: rustdesk_rendezvous_alerts
+    interval: 30s
+    rules:
+      - alert: RustDeskRendezvousDown
+        expr: up{job="rustdesk-rendezvous"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Rendezvous 服务宕机"
+          description: "RustDesk Rendezvous 服务已经宕机超过 2 分钟"
+
+      - alert: RustDeskRendezvousRegistrationFailure
+        expr: rate(rustdesk_registration_failures_total[5m]) / rate(rustdesk_registration_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk 注册失败率过高"
+          description: "RustDesk 注册失败率超过 10%，当前值: {{ $value | humanizePercentage }}"
+
+  - name: rustdesk_relay_alerts
+    interval: 30s
+    rules:
+      - alert: RustDeskRelayDown
+        expr: up{job="rustdesk-relay"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Relay 服务宕机"
+          description: "RustDesk Relay 中继服务已经宕机超过 2 分钟"
+
+      - alert: RustDeskRelayHighLatency
+        expr: histogram_quantile(0.95, rate(rustdesk_relay_latency_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: rustdesk
+        annotations:
+          summary: "RustDesk Relay 延迟过高"
+          description: "RustDesk Relay 95% 延迟超过 2 秒，当前值: {{ $value }}s"
+
+  - name: rustdesk_system_alerts
+    interval: 60s
+    rules:
+      - alert: ServerHighCPU
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务器 CPU 使用率过高"
+          description: "服务器 {{ $labels.instance }} CPU 使用率超过 80%，当前值: {{ $value }}%"
+
+      - alert: ServerHighMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务器内存使用率过高"
+          description: "服务器 {{ $labels.instance }} 内存使用率超过 85%，当前值: {{ $value }}%"
+
+      - alert: ServerHighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务器磁盘使用率过高"
+          description: "服务器 {{ $labels.instance }} 磁盘使用率超过 85%，当前值: {{ $value }}%"
+
+      - alert: ServerNetworkHighTraffic
+        expr: rate(node_network_receive_bytes_total[5m]) + rate(node_network_transmit_bytes_total[5m]) > 1e9
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "服务器网络流量较高"
+          description: "服务器 {{ $labels.instance }} 网络流量较高，当前值: {{ $value | humanize }}bytes/s"

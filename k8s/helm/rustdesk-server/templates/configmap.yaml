@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-config
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+data:
+  HBBS_PORT: {{ .Values.hbbs.env.HBBS_PORT | quote }}
+  ENFORCE_SECURITY: {{ .Values.hbbs.env.ENFORCE_SECURITY | quote }}
+  HBBR_PORT: {{ .Values.hbbr.env.HBBR_PORT | quote }}
+  RELAY_PORT: {{ .Values.hbbr.env.RELAY_PORT | quote }}
+  NAT_TYPE_QUERY_PORT: {{ .Values.hbbs.env.NAT_TYPE_QUERY_PORT | default "21118" | quote }}

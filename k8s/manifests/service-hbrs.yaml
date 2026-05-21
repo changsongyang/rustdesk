@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbrs
+  namespace: rustdesk
+  labels:
+    app: rustdesk-hbrs
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbrs
+    app.kubernetes.io/part-of: rustdesk-server
+spec:
+  type: ClusterIP
+  ports:
+    - name: relay-tcp
+      port: 21114
+      targetPort: 21114
+      protocol: TCP
+    - name: relay-udp
+      port: 21117
+      targetPort: 21117
+      protocol: UDP
+  selector:
+    app: rustdesk-hbrs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbrs-headless
+  namespace: rustdesk
+  labels:
+    app: rustdesk-hbrs
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbrs
+    app.kubernetes.io/part-of: rustdesk-server
+spec:
+  clusterIP: None
+  ports:
+    - name: relay-tcp
+      port: 21114
+      targetPort: 21114
+      protocol: TCP
+    - name: relay-udp
+      port: 21117
+      targetPort: 21117
+      protocol: UDP
+  selector:
+    app: rustdesk-hbrs

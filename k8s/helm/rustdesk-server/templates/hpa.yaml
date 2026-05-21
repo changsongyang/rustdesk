@@ -1,0 +1,107 @@
+{{- if .Values.autoscaling.enabled }}
+{{- if .Values.autoscaling.hbbs }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbs-hpa
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "rustdesk-server.fullname" . }}-hbbs
+  minReplicas: {{ .Values.autoscaling.hbbs.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.hbbs.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.hbbs.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.hbbs.targetMemoryUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+{{- end }}
+
+{{- if .Values.autoscaling.hbbr }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbr-hpa
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "rustdesk-server.fullname" . }}-hbbr
+  minReplicas: {{ .Values.autoscaling.hbbr.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.hbbr.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.hbbr.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.hbbr.targetMemoryUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+      selectPolicy: Max
+{{- end }}
+{{- end }}

@@ -664,9 +664,7 @@ pub fn core_main() -> Option<Vec<String>> {
                 let local_id = crate::ipc::get_id();
                 let id_to_deploy = new_id.clone().unwrap_or_else(|| local_id.clone());
                 let uuid = crate::encode64(hbb_common::get_uuid());
-                let pk = crate::encode64(
-                    hbb_common::config::Config::get_key_pair().1,
-                );
+                let pk = crate::encode64(hbb_common::config::Config::get_key_pair().1);
                 let body = serde_json::json!({
                     "id": id_to_deploy,
                     "uuid": uuid,

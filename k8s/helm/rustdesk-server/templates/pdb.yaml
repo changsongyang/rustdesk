@@ -1,0 +1,42 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbs-pdb
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+spec:
+  {{- if .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rustdesk-server.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: hbbs
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbr-pdb
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+spec:
+  {{- if .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "rustdesk-server.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: hbbr
+{{- end }}

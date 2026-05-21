@@ -61,7 +61,7 @@ fn initialize(app_dir: &str, custom_client_config: &str) {
         );
         #[cfg(not(debug_assertions))]
         hbb_common::init_log(false, "");
-        #[cfg(feature = "mediacodec")]
+        #[cfg(all(feature = "mediacodec", target_os = "android"))]
         scrap::mediacodec::check_mediacodec();
         crate::common::test_rendezvous_server();
         crate::common::test_nat_type();
@@ -92,10 +92,20 @@ pub fn start_global_event_stream(s: StreamSink<String>, app_type: String) -> Res
 pub fn stop_global_event_stream(app_type: String) {
     super::flutter::stop_global_event_stream(app_type)
 }
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum EventToUI {
     Event(String),
     Rgba(usize),
     Texture(usize, bool), // (display, gpu_texture)
+}
+
+impl EventToUI {
+    pub fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|e| {
+            log::error!("Failed to serialize EventToUI: {:?}", e);
+            String::new()
+        })
+    }
 }
 
 pub fn host_stop_system_key_propagate(_stopped: bool) {
@@ -176,7 +186,7 @@ pub fn session_add_sync(
 }
 
 pub fn session_start(
-    events2ui: StreamSink<EventToUI>,
+    events2ui: StreamSink<String>,
     session_id: SessionID,
     id: String,
 ) -> ResultType<()> {
@@ -184,7 +194,7 @@ pub fn session_start(
 }
 
 pub fn session_start_with_displays(
-    events2ui: StreamSink<EventToUI>,
+    events2ui: StreamSink<String>,
     session_id: SessionID,
     id: String,
     displays: Vec<i32>,
@@ -2514,7 +2524,7 @@ pub fn plugin_event(_id: String, _peer: String, _event: Vec<u8>) {
     }
 }
 
-pub fn plugin_register_event_stream(_id: String, _event2ui: StreamSink<EventToUI>) {
+pub fn plugin_register_event_stream(_id: String, _event2ui: StreamSink<String>) {
     #[cfg(feature = "plugin_framework")]
     {
         crate::plugin::native_handlers::session::session_register_event_stream(_id, _event2ui);
@@ -2776,9 +2786,12 @@ pub fn session_request_new_display_init_msgs(session_id: SessionID, display: usi
 pub fn main_audio_support_loopback() -> SyncReturn<bool> {
     #[cfg(target_os = "windows")]
     let is_surpport = true;
-    #[cfg(feature = "screencapturekit")]
+    #[cfg(all(feature = "screencapturekit", target_os = "macos"))]
     let is_surpport = crate::audio_service::is_screen_capture_kit_available();
-    #[cfg(not(any(target_os = "windows", feature = "screencapturekit")))]
+    #[cfg(not(any(
+        target_os = "windows",
+        all(feature = "screencapturekit", target_os = "macos")
+    )))]
     let is_surpport = false;
     SyncReturn(is_surpport)
 }
@@ -3130,5 +3143,81 @@ pub mod server_side {
         _class: JClass,
     ) -> jboolean {
         jboolean::from(crate::server::is_clipboard_service_ok())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_event_to_ui_event_serialization() {
+        let event = EventToUI::Event("test_message".to_string());
+        let json_str = event.to_string();
+
+        assert!(json_str.contains("Event"));
+        assert!(json_str.contains("test_message"));
+
+        // 验证可以反序列化
+        let deserialized: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized[0], 0); // Event 标签为 0
+        assert_eq!(deserialized[1], "test_message");
+    }
+
+    #[test]
+    fn test_event_to_ui_rgba_serialization() {
+        let event = EventToUI::Rgba(1);
+        let json_str = event.to_string();
+
+        assert!(json_str.contains("Rgba"));
+        assert!(json_str.contains("1"));
+
+        // 验证可以反序列化
+        let deserialized: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized[0], 1); // Rgba 标签为 1
+        assert_eq!(deserialized[1], 1);
+    }
+
+    #[test]
+    fn test_event_to_ui_texture_serialization() {
+        let event = EventToUI::Texture(2, true);
+        let json_str = event.to_string();
+
+        assert!(json_str.contains("Texture"));
+
+        // 验证可以反序列化
+        let deserialized: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized[0], 2); // Texture 标签为 2
+        assert_eq!(deserialized[1], 2);
+        assert_eq!(deserialized[2], true);
+    }
+
+    #[test]
+    fn test_event_to_ui_texture_false_serialization() {
+        let event = EventToUI::Texture(0, false);
+        let json_str = event.to_string();
+
+        // 验证可以反序列化
+        let deserialized: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        assert_eq!(deserialized[0], 2); // Texture 标签为 2
+        assert_eq!(deserialized[1], 0);
+        assert_eq!(deserialized[2], false);
+    }
+
+    #[test]
+    fn test_event_to_ui_debug_format() {
+        let event = EventToUI::Event("debug_test".to_string());
+        let debug_str = format!("{:?}", event);
+
+        assert!(debug_str.contains("Event"));
+        assert!(debug_str.contains("debug_test"));
+    }
+
+    #[test]
+    fn test_event_to_ui_clone() {
+        let event = EventToUI::Event("clone_test".to_string());
+        let cloned = event.clone();
+
+        assert_eq!(event.to_string(), cloned.to_string());
     }
 }

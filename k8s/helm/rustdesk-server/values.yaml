@@ -1,0 +1,198 @@
+replicaCount: 2
+
+createNamespace: true
+namespaceOverride: ""
+
+image:
+  repository: rustdesk/rustdesk-server
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "21115"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seLinuxOptions:
+    level: "s0"
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  hbbs:
+    type: ClusterIP
+    clusterIP: None
+    ports:
+      hbbsTcp: 21115
+      hbbsUdp: 21115
+      natQuery: 21118
+    nodePort: 32115
+  hbbr:
+    type: ClusterIP
+    clusterIP: None
+    ports:
+      hbbrTcp: 21116
+      relayTcp: 21117
+    nodePort: 32116
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+  hosts:
+    - host: rustdesk.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: hbbs
+          port: 21115
+        - path: /relay
+          pathType: Prefix
+          service: hbbr
+          port: 21117
+  tls:
+    enabled: false
+    secretName: rustdesk-tls
+
+persistence:
+  enabled: true
+  data:
+    enabled: true
+    storageClass: standard
+    accessMode: ReadWriteMany
+    size: 10Gi
+    annotations: {}
+  logs:
+    enabled: true
+    storageClass: standard
+    accessMode: ReadWriteMany
+    size: 5Gi
+    annotations: {}
+
+resources:
+  hbbs:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  hbbr:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+autoscaling:
+  enabled: true
+  hbbs:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  hbbr:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: ""
+          topologyKey: kubernetes.io/hostname
+
+hbbs:
+  env:
+    HBBS_PORT: "21115"
+    ENFORCE_SECURITY: "true"
+  command:
+    - /usr/local/bin/hbbs
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+hbbr:
+  env:
+    HBBR_PORT: "21116"
+    RELAY_PORT: "21117"
+  command:
+    - /usr/local/bin/hbbr
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureFailure: 3
+
+secrets:
+  enabled: false
+  encryptionKey: ""
+  apiKey: ""
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -406,36 +406,32 @@ class _RemotePageState extends State<RemotePage> with WidgetsBindingObserver {
                 ],
               )),
           body: Obx(
-            () => getRawPointerAndKeyBody(Overlay(
-              initialEntries: [
-                OverlayEntry(builder: (context) {
-                  return Container(
-                    color: kColorCanvas,
-                    child: isWebDesktop
-                        ? getBodyForDesktopWithListener()
-                        : SafeArea(
-                            child:
-                                OrientationBuilder(builder: (ctx, orientation) {
-                              if (_currentOrientation != orientation) {
-                                Timer(const Duration(milliseconds: 200), () {
-                                  gFFI.dialogManager
-                                      .resetMobileActionsOverlay(ffi: gFFI);
-                                  _currentOrientation = orientation;
-                                  gFFI.canvasModel.updateViewStyle();
-                                });
-                              }
-                              return Container(
-                                color: MyTheme.canvasColor,
-                                child: RawTouchGestureDetectorRegion(
-                                  child: getBodyForMobile(),
-                                  ffi: gFFI,
-                                ),
-                              );
-                            }),
-                          ),
-                  );
-                })
-              ],
+            () => getRawPointerAndKeyBody(BlockableOverlay(
+              state: _blockableOverlayState,
+              underlying: Container(
+                color: kColorCanvas,
+                child: isWebDesktop
+                    ? getBodyForDesktopWithListener()
+                    : SafeArea(
+                        child: OrientationBuilder(builder: (ctx, orientation) {
+                          if (_currentOrientation != orientation) {
+                            Timer(const Duration(milliseconds: 200), () {
+                              gFFI.dialogManager
+                                  .resetMobileActionsOverlay(ffi: gFFI);
+                              _currentOrientation = orientation;
+                              gFFI.canvasModel.updateViewStyle();
+                            });
+                          }
+                          return Container(
+                            color: MyTheme.canvasColor,
+                            child: RawTouchGestureDetectorRegion(
+                              child: getBodyForMobile(),
+                              ffi: gFFI,
+                            ),
+                          );
+                        }),
+                      ),
+              ),
             )),
           )),
     );

@@ -1,0 +1,91 @@
+{{- if .Release.IsInstall }}
+RustDesk Server has been installed!
+
+恭喜！RustDesk 服务端已成功安装。
+
+== RustDesk 服务组件 ==
+
+本 Chart 部署了以下组件：
+1. **HBBS (RustDesk ID Server)**: 版本 {{ .Values.replicaCount }} 副本
+   - 端口: TCP/UDP 21115, UDP 21118
+   - 功能: ID 注册和中继服务
+
+2. **HBBR (RustDesk Relay Server)**: 版本 {{ .Values.replicaCount }} 副本
+   - 端口: TCP 21116, TCP 21117
+   - 功能: 数据中继服务
+
+== 获取服务信息 ==
+
+获取所有 Services:
+  kubectl get svc -n {{ .Release.Namespace }}
+
+获取 HBBS 服务:
+  kubectl get svc -n {{ .Release.Namespace }} -l app.kubernetes.io/component=hbbs
+
+获取 HBBR 服务:
+  kubectl get svc -n {{ .Release.Namespace }} -l app.kubernetes.io/component=hbbr
+
+== 检查部署状态 ==
+
+检查 Pods:
+  kubectl get pods -n {{ .Release.Namespace }}
+
+查看 Pod 日志:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=hbbs
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=hbbr
+
+== 配置客户端 ==
+
+在 RustDesk 客户端配置中，设置以下服务器地址：
+- ID Server: hbbs.{{ .Release.Namespace }}.svc.cluster.local 或 <NodeIP>:32115
+- Relay Server: hbbr.{{ .Release.Namespace }}.svc.cluster.local 或 <NodeIP>:32116
+
+{{- if .Values.autoscaling.enabled }}
+== 自动扩缩容 ==
+
+HPA 已启用：
+- HBBS: {{ .Values.autoscaling.hbbs.minReplicas }}-{{ .Values.autoscaling.hbbs.maxReplicas }} 副本
+- HBBR: {{ .Values.autoscaling.hbbr.minReplicas }}-{{ .Values.autoscaling.hbbr.maxReplicas }} 副本
+
+查看 HPA 状态:
+  kubectl get hpa -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.persistence.enabled }}
+== 持久化存储 ==
+
+数据卷已配置:
+- 数据卷: {{ .Values.persistence.data.size }}
+- 日志卷: {{ .Values.persistence.logs.size }}
+
+确保 StorageClass "{{ .Values.persistence.data.storageClass }}" 可用。
+{{- end }}
+
+{{- else if .Release.IsUpgrade }}
+
+RustDesk Server 已升级到版本 {{ .Chart.Version }}！
+
+{{- end }}
+
+== 下一步 ==
+
+1. 验证服务是否正常运行:
+   kubectl get pods -n {{ .Release.Namespace }}
+
+2. 检查日志以确保服务启动成功:
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=hbbs --tail=50
+
+3. 在 RustDesk 客户端配置服务器地址
+
+4. 如需调整配置，可使用 helm upgrade:
+   helm upgrade {{ .Release.Name }} rustdesk/rustdesk-server -n {{ .Release.Namespace }}
+
+{{- if .Values.secrets.enabled }}
+== 安全配置 ==
+
+您已启用密钥管理。请确保：
+- API Key 已正确设置
+- 加密密钥已配置
+{{- end }}
+
+感谢使用 RustDesk！

@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk-hbbs
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rustdesk
+      app.kubernetes.io/component: hbbs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rustdesk
+        app.kubernetes.io/component: hbbs
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "21115"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: hbbs
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: hbbs
+          image: rustdesk/rustdesk-server:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/hbbs
+            - -k
+          env:
+            - name: HBBS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: rustdesk-hbbs-config
+                  key: HBBS_PORT
+            - name: ENFORCE_SECURITY
+              valueFrom:
+                configMapKeyRef:
+                  name: rustdesk-hbbs-config
+                  key: ENFORCE_SECURITY
+          ports:
+            - name: hbbs-tcp
+              containerPort: 21115
+              protocol: TCP
+            - name: hbbs-udp
+              containerPort: 21115
+              protocol: UDP
+            - name: nat-query
+              containerPort: 21118
+              protocol: UDP
+          livenessProbe:
+            tcpSocket:
+              port: hbbs-tcp
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: hbbs-tcp
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /var/log/rustdesk
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: rustdesk-data
+        - name: logs
+          persistentVolumeClaim:
+            claimName: rustdesk-logs
+      securityContext:
+        seLinuxOptions:
+          level: "s0"
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30

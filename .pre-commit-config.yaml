@@ -1,0 +1,61 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '^third-party/'
+      - id: end-of-file-fixer
+        exclude: '^third-party/'
+      - id: check-yaml
+        exclude: '^third-party/'
+      - id: check-json
+        exclude: '^third-party/'
+      - id: check-toml
+        exclude: '^third-party/'
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: rustfmt
+        name: rustfmt
+        entry: cargo fmt --all --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Check Rust code formatting"
+
+      - id: clippy
+        name: clippy
+        entry: cargo clippy --all --all-targets -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Check Rust code quality"
+
+      - id: cargo-audit
+        name: cargo-audit
+        entry: cargo audit
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Check for security vulnerabilities in dependencies"
+
+      - id: cargo-check
+        name: cargo-check
+        entry: cargo check --all
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Check Rust code for compilation errors"
+
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+        exclude: '^third-party/'
+        description: "Check shell scripts for errors"
+
+ci:
+  autoupdate_schedule: weekly

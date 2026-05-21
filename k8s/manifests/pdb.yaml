@@ -1,0 +1,29 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rustdesk-hbbs-pdb
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rustdesk
+      app.kubernetes.io/component: hbbs
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rustdesk-hbbr-pdb
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rustdesk
+      app.kubernetes.io/component: hbbr

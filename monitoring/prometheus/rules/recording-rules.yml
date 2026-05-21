@@ -1,0 +1,80 @@
+groups:
+  - name: rustdesk_recording_rules
+    interval: 30s
+    rules:
+      - record: job:rustdesk_active_connections:rate5m
+        expr: rate(rustdesk_active_connections_total[5m])
+
+      - record: job:rustdesk_requests_per_second:rate5m
+        expr: rate(rustdesk_requests_total[5m])
+
+      - record: job:rustdesk_errors_per_second:rate5m
+        expr: rate(rustdesk_requests_total{status=~"5.."}[5m])
+
+      - record: job:rustdesk_error_rate:ratio5m
+        expr: |
+          rate(rustdesk_requests_total{status=~"5.."}[5m])
+          / rate(rustdesk_requests_total[5m])
+
+      - record: job:rustdesk_latency_p50:rate5m
+        expr: histogram_quantile(0.50, rate(rustdesk_request_duration_seconds_bucket[5m]))
+
+      - record: job:rustdesk_latency_p90:rate5m
+        expr: histogram_quantile(0.90, rate(rustdesk_request_duration_seconds_bucket[5m]))
+
+      - record: job:rustdesk_latency_p95:rate5m
+        expr: histogram_quantile(0.95, rate(rustdesk_request_duration_seconds_bucket[5m]))
+
+      - record: job:rustdesk_latency_p99:rate5m
+        expr: histogram_quantile(0.99, rate(rustdesk_request_duration_seconds_bucket[5m]))
+
+      - record: job:rustdesk_bandwidth_in:rate5m
+        expr: rate(rustdesk_network_bytes_total{direction="in"}[5m])
+
+      - record: job:rustdesk_bandwidth_out:rate5m
+        expr: rate(rustdesk_network_bytes_total{direction="out"}[5m])
+
+      - record: job:rustdesk_relay_connections:rate5m
+        expr: rate(rustdesk_relay_connections_total[5m])
+
+      - record: job:rustdesk_registration_total:rate5m
+        expr: rate(rustdesk_registration_total[5m])
+
+      - record: job:rustdesk_registration_failures:rate5m
+        expr: rate(rustdesk_registration_failures_total[5m])
+
+  - name: rustdesk_relay_recording_rules
+    interval: 30s
+    rules:
+      - record: job:rustdesk_relay_latency_p50:rate5m
+        expr: histogram_quantile(0.50, rate(rustdesk_relay_latency_seconds_bucket[5m]))
+
+      - record: job:rustdesk_relay_latency_p90:rate5m
+        expr: histogram_quantile(0.90, rate(rustdesk_relay_latency_seconds_bucket[5m]))
+
+      - record: job:rustdesk_relay_latency_p95:rate5m
+        expr: histogram_quantile(0.95, rate(rustdesk_relay_latency_seconds_bucket[5m]))
+
+      - record: job:rustdesk_relay_latency_p99:rate5m
+        expr: histogram_quantile(0.99, rate(rustdesk_relay_latency_seconds_bucket[5m]))
+
+      - record: job:rustdesk_relay_bandwidth:rate5m
+        expr: rate(rustdesk_relay_bytes_total[5m])
+
+  - name: node_recording_rules
+    interval: 60s
+    rules:
+      - record: instance:cpu_usage:rate5m
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+      - record: instance:memory_usage:ratio
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+
+      - record: instance:disk_usage:ratio
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))
+
+      - record: instance:network_in:rate5m
+        expr: rate(node_network_receive_bytes_total[5m])
+
+      - record: instance:network_out:rate5m
+        expr: rate(node_network_transmit_bytes_total[5m])

@@ -32,6 +32,7 @@ use crate::ipc;
 type Message = RendezvousMessage;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[allow(dead_code)]
 pub type Children = Arc<Mutex<(bool, HashMap<(String, String), Child>)>>;
 
 #[derive(Clone, Debug, Serialize)]

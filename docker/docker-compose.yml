@@ -1,0 +1,327 @@
+# RustDesk Docker Compose Configuration
+# 单节点 Docker Compose 部署配置
+#
+# Usage:
+#   1. Copy .env.example to .env and configure
+#   2. Run: docker-compose up -d
+#   3. Check logs: docker-compose logs -f
+#
+# 使用说明:
+#   1. 复制 .env.example 为 .env 并配置
+#   2. 运行: docker-compose up -d
+#   3. 查看日志: docker-compose logs -f
+
+services:
+  # ============================================================
+  # hbbs - RustDesk Signal Server (ID Server)
+  # hbbs - RustDesk 信号服务器 (ID 服务器)
+  # ============================================================
+  hbbs:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server}:${RUSTDESK_TAG:-latest}
+    container_name: rustdesk-hbbs
+    command: hbbs
+    hostname: hbbs
+
+    # 端口映射 / Port mapping
+    ports:
+      - "${HBBS_PORT:-21115}:21115"    # hbbs TCP port
+      - "${HBBS_NAT_PORT:-21117}:21117/udp"  # NAT detection port
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - ${DATA_DIR:-./data}/hbbs:/root
+      - ${CONFIG_DIR:-./config}/hbbs:/etc/rustdesk
+      - ${LOG_DIR:-./logs}/hbbs:/var/log/rustdesk
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+    # 环境变量 / Environment variables
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - TZ=${TZ:-UTC}
+      - HBBS_ENCRYPTED_ONLY=${HBBS_ENCRYPTED_ONLY:-false}
+      - HBBS_ALLOW_DISCONNECT=${HBBS_ALLOW_DISCONNECT:-true}
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${HBBS_CPU_LIMIT:-1.0}'
+          memory: ${HBBS_MEMORY_LIMIT:-512M}
+        reservations:
+          cpus: '${HBBS_CPU_RESERVE:-0.5}'
+          memory: ${HBBS_MEMORY_RESERVE:-256M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:21115/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 重启策略 / Restart policy
+    restart: ${RESTART_POLICY:-unless-stopped}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-network
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+      - read-only:rootfs:true
+    cap_drop:
+      - ALL
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+        labels: "service,component"
+
+    # 依赖关系 / Dependencies
+    depends_on:
+      - hbbr
+
+    # 资源使用标记 / Resource labels
+    labels:
+      - "com.rustdesk.version=${RUSTDESK_TAG:-latest}"
+      - "com.rustdesk.service=hbbs"
+      - "com.rustdesk.role=signaling"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+  # ============================================================
+  # hbbr - RustDesk Relay Server
+  # hbbr - RustDesk 中继服务器
+  # ============================================================
+  hbbr:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server}:${RUSTDESK_TAG:-latest}
+    container_name: rustdesk-hbbr
+    command: hbbr
+    hostname: hbbr
+
+    # 端口映射 / Port mapping
+    ports:
+      - "${HBBR_PORT:-21116}:21116"    # hbbr relay port
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - ${DATA_DIR:-./data}/hbbr:/root
+      - ${CONFIG_DIR:-./config}/hbbr:/etc/rustdesk
+      - ${LOG_DIR:-./logs}/hbbr:/var/log/rustdesk
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+    # 环境变量 / Environment variables
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - TZ=${TZ:-UTC}
+      - HBBR_MAX_CONNECTION=${HBBR_MAX_CONNECTION:-4096}
+      - HBBR_ALLOW_DISCONNECT=${HBBR_ALLOW_DISCONNECT:-true}
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${HBBR_CPU_LIMIT:-2.0}'
+          memory: ${HBBR_MEMORY_LIMIT:-1024M}
+        reservations:
+          cpus: '${HBBR_CPU_RESERVE:-1.0}'
+          memory: ${HBBR_MEMORY_RESERVE:-512M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:21116/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 重启策略 / Restart policy
+    restart: ${RESTART_POLICY:-unless-stopped}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-network
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+      - read-only:rootfs:true
+    cap_drop:
+      - ALL
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+        labels: "service,component"
+
+    # 资源使用标记 / Resource labels
+    labels:
+      - "com.rustdesk.version=${RUSTDESK_TAG:-latest}"
+      - "com.rustdesk.service=hbbr"
+      - "com.rustdesk.role=relay"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+  # ============================================================
+  # Optional: Nginx Reverse Proxy (for HTTPS)
+  # 可选: Nginx 反向代理 (用于 HTTPS)
+  # ============================================================
+  nginx:
+    image: ${NGINX_IMAGE:-nginx}:${NGINX_TAG:-alpine}
+    container_name: rustdesk-nginx
+    hostname: nginx-proxy
+
+    # 端口映射 / Port mapping
+    ports:
+      - "${HTTP_PORT:-80}:80"    # HTTP
+      - "${HTTPS_PORT:-443}:443"  # HTTPS
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - ${NGINX_CONF_DIR:-./nginx}:/etc/nginx
+      - ${NGINX_CERTS_DIR:-./certs}:/etc/nginx/certs:ro
+      - ${NGINX_LOG_DIR:-./logs}/nginx:/var/log/nginx
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    # 环境变量 / Environment variables
+    environment:
+      - TZ=${TZ:-UTC}
+      - NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-auto}
+      - NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-2048}
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${NGINX_CPU_LIMIT:-0.5}'
+          memory: ${NGINX_MEMORY_LIMIT:-256M}
+        reservations:
+          cpus: '${NGINX_CPU_RESERVE:-0.1}'
+          memory: ${NGINX_MEMORY_RESERVE:-64M}
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # 重启策略 / Restart policy
+    restart: ${RESTART_POLICY:-unless-stopped}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-network
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+
+    # 依赖关系 / Dependencies
+    depends_on:
+      - hbbs
+      - hbbr
+
+    # 资源使用标记 / Resource labels
+    labels:
+      - "com.rustdesk.service=nginx"
+      - "com.rustdesk.role=proxy"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+# ============================================================
+# 网络配置 / Network Configuration
+# ============================================================
+networks:
+  rustdesk-network:
+    driver: ${NETWORK_DRIVER:-bridge}
+    driver_opts:
+      com.docker.network.bridge.name: rustdesk-br0
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    ipam:
+      driver: default
+      config:
+        - subnet: ${NETWORK_SUBNET:-172.28.0.0/16}
+          gateway: ${NETWORK_GATEWAY:-172.28.0.1}
+    enable_ipv6: ${NETWORK_IPV6:-false}
+    attachable: true
+    name: rustdesk_network
+
+# ============================================================
+# 卷配置 / Volume Configuration
+# ============================================================
+volumes:
+  hbbs-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-./data}/hbbs
+  hbbr-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-./data}/hbbr
+  hbbs-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CONFIG_DIR:-./config}/hbbs
+  hbbr-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CONFIG_DIR:-./config}/hbbr
+  nginx-config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${NGINX_CONF_DIR:-./nginx}
+  nginx-certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${NGINX_CERTS_DIR:-./certs}
+
+# ============================================================
+# 生产环境最佳实践 / Production Best Practices
+# ============================================================
+# 1. 定期备份数据卷 / Regularly backup data volumes
+# 2. 使用专用网络隔离 / Use dedicated network isolation
+# 3. 配置资源限制防止资源耗尽 / Configure resource limits to prevent resource exhaustion
+# 4. 启用健康检查自动恢复 / Enable health checks for automatic recovery
+# 5. 配置日志轮转避免磁盘满 / Configure log rotation to avoid disk full
+# 6. 使用只读文件系统和安全选项 / Use read-only filesystem and security options
+# 7. 定期更新镜像版本 / Regularly update image versions
+# 8. 监控容器资源使用 / Monitor container resource usage

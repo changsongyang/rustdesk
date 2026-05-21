@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbs
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rustdesk-server.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: hbbs
+  template:
+    metadata:
+      labels:
+        {{- include "rustdesk-server.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: hbbs
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+    spec:
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rustdesk-server.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: hbbs
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: {{ .Values.hbbs.command }}
+          {{- if .Values.hbbs.args }}
+          args:
+            {{- toYaml .Values.hbbs.args | nindent 12 }}
+          {{- end }}
+          env:
+            - name: HBBS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rustdesk-server.fullname" . }}-config
+                  key: HBBS_PORT
+            - name: ENFORCE_SECURITY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rustdesk-server.fullname" . }}-config
+                  key: ENFORCE_SECURITY
+          ports:
+            - name: hbbs-tcp
+              containerPort: 21115
+              protocol: TCP
+            - name: hbbs-udp
+              containerPort: 21115
+              protocol: UDP
+            - name: nat-query
+              containerPort: 21118
+              protocol: UDP
+          {{- if .Values.hbbs.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.hbbs.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.hbbs.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.hbbs.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources.hbbs | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            {{- if .Values.persistence.data.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: /var/log/rustdesk
+            {{- end }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        {{- if .Values.persistence.data.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "rustdesk-server.fullname" . }}-data
+        {{- end }}
+        {{- if .Values.persistence.logs.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "rustdesk-server.fullname" . }}-logs
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rustdesk-hbbs-config
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+data:
+  RUST_LOG: "info"
+  ENCRYPTED_ONLY: "false"
+  ENABLE_LAN_DISCOVERY: "false"

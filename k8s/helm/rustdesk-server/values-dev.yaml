@@ -1,0 +1,135 @@
+# Development Environment Configuration
+# 适用于开发和测试环境
+
+replicaCount: 1
+
+createNamespace: true
+
+image:
+  repository: rustdesk/rustdesk-server
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+podAnnotations:
+  prometheus.io/scrape: "false"
+
+podSecurityContext:
+  runAsNonRoot: false
+
+securityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  runAsGroup: 0
+  allowPrivilegeEscalation: true
+  capabilities:
+    drop: []
+
+service:
+  type: NodePort
+  hbbs:
+    type: NodePort
+    ports:
+      hbbsTcp: 21115
+      hbbsUdp: 21115
+      natQuery: 21118
+    nodePort: 32115
+  hbbr:
+    type: NodePort
+    ports:
+      hbbrTcp: 21116
+      relayTcp: 21117
+    nodePort: 32116
+  enableNodePort: true
+
+ingress:
+  enabled: false
+
+persistence:
+  enabled: true
+  data:
+    enabled: true
+    storageClass: "standard"
+    accessMode: ReadWriteMany
+    size: 1Gi
+  logs:
+    enabled: true
+    storageClass: "standard"
+    accessMode: ReadWriteMany
+    size: 1Gi
+
+resources:
+  hbbs:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  hbbr:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+autoscaling:
+  enabled: false
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+hbbs:
+  env:
+    HBBS_PORT: "21115"
+    ENFORCE_SECURITY: "false"
+  command:
+    - /usr/local/bin/hbbs
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+hbbr:
+  env:
+    HBBR_PORT: "21116"
+    RELAY_PORT: "21117"
+  command:
+    - /usr/local/bin/hbbr
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+secrets:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false

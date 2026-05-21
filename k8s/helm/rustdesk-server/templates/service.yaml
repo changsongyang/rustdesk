@@ -1,0 +1,122 @@
+{{- if eq .Values.service.hbbs.type "ClusterIP" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbs
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.service.hbbs.type }}
+  {{- if .Values.service.hbbs.clusterIP }}
+  clusterIP: {{ .Values.service.hbbs.clusterIP }}
+  {{- end }}
+  ports:
+    - name: hbbs-tcp
+      port: {{ .Values.service.hbbs.ports.hbbsTcp }}
+      targetPort: hbbs-tcp
+      protocol: TCP
+    - name: hbbs-udp
+      port: {{ .Values.service.hbbs.ports.hbbsUdp }}
+      targetPort: hbbs-udp
+      protocol: UDP
+    - name: nat-query
+      port: {{ .Values.service.hbbs.ports.natQuery }}
+      targetPort: nat-query
+      protocol: UDP
+  selector:
+    {{- include "rustdesk-server.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+{{- end }}
+
+{{- if eq .Values.service.hbbr.type "ClusterIP" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbr
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+  annotations:
+    {{- toYaml .Values.service.annotations | nindent 4 }}
+spec:
+  type: {{ .Values.service.hbbr.type }}
+  {{- if .Values.service.hbbr.clusterIP }}
+  clusterIP: {{ .Values.service.hbbr.clusterIP }}
+  {{- end }}
+  ports:
+    - name: hbbr-tcp
+      port: {{ .Values.service.hbbr.ports.hbbrTcp }}
+      targetPort: hbbr-tcp
+      protocol: TCP
+    - name: relay-tcp
+      port: {{ .Values.service.hbbr.ports.relayTcp }}
+      targetPort: relay-tcp
+      protocol: TCP
+  selector:
+    {{- include "rustdesk-server.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+{{- end }}
+
+{{- if .Values.service.enableNodePort }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbs-nodeport
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+spec:
+  type: NodePort
+  ports:
+    - name: hbbs-tcp
+      port: 21115
+      targetPort: 21115
+      nodePort: {{ .Values.service.hbbs.nodePort }}
+      protocol: TCP
+    - name: hbbs-udp
+      port: 21115
+      targetPort: 21115
+      nodePort: {{ .Values.service.hbbs.nodePort }}
+      protocol: UDP
+    - name: nat-query
+      port: 21118
+      targetPort: 21118
+      nodePort: 32118
+      protocol: UDP
+  selector:
+    {{- include "rustdesk-server.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbr-nodeport
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+spec:
+  type: NodePort
+  ports:
+    - name: hbbr-tcp
+      port: 21116
+      targetPort: 21116
+      nodePort: {{ .Values.service.hbbr.nodePort }}
+      protocol: TCP
+    - name: relay-tcp
+      port: 21117
+      targetPort: 21117
+      nodePort: 32117
+      protocol: TCP
+  selector:
+    {{- include "rustdesk-server.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+{{- end }}

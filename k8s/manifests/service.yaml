@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbs-service
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: hbbs-tcp
+      port: 21115
+      targetPort: hbbs-tcp
+      protocol: TCP
+    - name: hbbs-udp
+      port: 21115
+      targetPort: hbbs-udp
+      protocol: UDP
+    - name: nat-query
+      port: 21118
+      targetPort: nat-query
+      protocol: UDP
+  selector:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbr-service
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr
+  annotations:
+    prometheus.io/scrape: "true"
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: hbbr-tcp
+      port: 21116
+      targetPort: hbbr-tcp
+      protocol: TCP
+    - name: relay-tcp
+      port: 21117
+      targetPort: relay-tcp
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbs-nodeport
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+spec:
+  type: NodePort
+  ports:
+    - name: hbbs-tcp
+      port: 21115
+      targetPort: 21115
+      nodePort: 32115
+      protocol: TCP
+    - name: hbbs-udp
+      port: 21115
+      targetPort: 21115
+      nodePort: 32115
+      protocol: UDP
+    - name: nat-query
+      port: 21118
+      targetPort: 21118
+      nodePort: 32118
+      protocol: UDP
+  selector:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustdesk-hbbr-nodeport
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr
+spec:
+  type: NodePort
+  ports:
+    - name: hbbr-tcp
+      port: 21116
+      targetPort: 21116
+      nodePort: 32116
+      protocol: TCP
+    - name: relay-tcp
+      port: 21117
+      targetPort: 21117
+      nodePort: 32117
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr

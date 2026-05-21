@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk-hbbr
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbr
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rustdesk
+      app.kubernetes.io/component: hbbr
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rustdesk
+        app.kubernetes.io/component: hbbr
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "21116"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: hbbr
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: hbbr
+          image: rustdesk/rustdesk-server:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/hbbr
+            - -k
+          env:
+            - name: HBBR_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: rustdesk-hbbs-config
+                  key: HBBR_PORT
+            - name: RELAY_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: rustdesk-hbbs-config
+                  key: RELAY_PORT
+          ports:
+            - name: hbbr-tcp
+              containerPort: 21116
+              protocol: TCP
+            - name: relay-tcp
+              containerPort: 21117
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: hbbr-tcp
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: hbbr-tcp
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /var/log/rustdesk
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: rustdesk-data
+        - name: logs
+          persistentVolumeClaim:
+            claimName: rustdesk-logs
+      securityContext:
+        seLinuxOptions:
+          level: "s0"
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30

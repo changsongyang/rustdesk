@@ -1,0 +1,102 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'rustdesk-server'
+    environment: 'production'
+    monitor: 'rustdesk'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+
+  - job_name: 'rustdesk-hbbs'
+    static_configs:
+      - targets: ['hbbs:21115']
+        labels:
+          service: 'rustdesk-hbbs'
+          component: ' rendezvous-server'
+          alias: 'hbbs'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\d+'
+        replacement: '${1}'
+
+  - job_name: 'rustdesk-hbbs-api'
+    static_configs:
+      - targets: ['hbbs:21116']
+        labels:
+          service: 'rustdesk-hbbs'
+          component: 'api'
+          alias: 'hbbs-api'
+
+  - job_name: 'rustdesk-hbbr'
+    static_configs:
+      - targets: ['hbbr:21117']
+        labels:
+          service: 'rustdesk-hbbr'
+          component: 'relay-server'
+          alias: 'hbbr'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):\d+'
+        replacement: '${1}'
+
+  - job_name: 'rustdesk-hbbr-api'
+    static_configs:
+      - targets: ['hbbr:21118']
+        labels:
+          service: 'rustdesk-hbbr'
+          component: 'api'
+          alias: 'hbbr-api'
+
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          component: 'system'
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+          component: 'container-metrics'
+
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          service: 'alertmanager'
+          component: 'alerting'
+
+alerting:
+  alertmanagers:
+    - scheme: http
+      path_prefix: /
+      static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+rule_files:
+  - 'rules/*.yml'
+  - 'rules/*.rules'
+
+storage:
+  tsdb:
+    path: '/prometheus'
+    retention.time: '30d'
+    retention.size: '50GB'
+    max-block-duration: '2h'
+    min-block-duration: '2h'
+
+web:
+  enable_admin_api: true
+  page_title: 'RustDesk Monitoring'

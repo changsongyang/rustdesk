@@ -1,0 +1,91 @@
+filebeat.inputs:
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+          matchers:
+            - logs_path:
+                logs_path: "/var/lib/docker/containers/"
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/rustdesk/*.log
+    fields:
+      service: rustdesk
+      type: rustdesk-log
+    fields_under_root: true
+    multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+    multiline.negate: true
+    multiline.match: after
+
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/rustdesk/hbbs.log
+    fields:
+      service: rustdesk-hbbs
+      component: rendezvous
+    fields_under_root: true
+
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/rustdesk/hbbr.log
+    fields:
+      service: rustdesk-hbbr
+      component: relay
+    fields_under_root: true
+
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - timestamp:
+      field: log.time
+      layouts:
+        - '2006-01-02T15:04:05Z07:00'
+        - '2006-01-02 15:04:05'
+      test:
+        - '2024-01-01T12:00:00Z'
+
+output.elasticsearch:
+  hosts: ['${ELASTICSEARCH_HOST:elasticsearch:9200}']
+  index: 'rustdesk-logs-%{+yyyy.MM.dd}'
+  username: '${ELASTICSEARCH_USERNAME:}'
+  password: '${ELASTICSEARCH_PASSWORD:}'
+  ssl.enabled: ${ELASTICSEARCH_SSL_ENABLED:false}
+  ssl.certificate_authorities: ['${ELASTICSEARCH_SSL_CA:}']
+  ssl.certificate: '${ELASTICSEARCH_SSL_CERT:}'
+  ssl.key: '${ELASTICSEARCH_SSL_KEY:}'
+
+output.logstash:
+  hosts: ['${LOGSTASH_HOST:logstash:5044}']
+
+setup.template.name: 'rustdesk-logs'
+setup.template.pattern: 'rustdesk-logs-*'
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 1
+
+setup.ilm.enabled: true
+setup.ilm.rollover_alias: 'rustdesk-logs'
+setup.ilm.pattern: '{now/d}-000001'
+setup.ilm.policy_name: 'rustdesk-logs-policy'
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0640
+
+monitoring.enabled: true
+monitoring.cluster_uuid: '${PROMETHEUS_CLUSTER_UUID:}'

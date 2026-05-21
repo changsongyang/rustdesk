@@ -1,0 +1,77 @@
+name: 'Setup Windows LLVM'
+description: 'Install and configure LLVM for Windows with architecture awareness'
+inputs:
+  version:
+    description: 'LLVM version to install'
+    required: true
+    default: '15.0.6'
+  arch:
+    description: 'Target architecture (i686 or x86_64)'
+    required: true
+  cache:
+    description: 'Enable LLVM cache'
+    required: false
+    default: 'false'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: ${{ inputs.version }}
+        architecture: ${{ inputs.arch == 'x86_64' && 'x64' || 'x86' }}
+        cache: ${{ inputs.cache }}
+
+    - name: Verify LLVM installation
+      shell: pwsh
+      run: |
+        $arch = "${{ inputs.arch }}"
+        Write-Host "::info::Checking LLVM installation for architecture: $arch"
+        $llvmPath1 = Join-Path $env:ProgramFiles "LLVM\bin\clang.exe"
+        $llvmPath2 = Join-Path ${env:ProgramFiles(x86)} "LLVM\bin\clang.exe"
+        $llvmPaths = @($llvmPath1, $llvmPath2)
+        foreach ($path in $llvmPaths) {
+          if (Test-Path $path) {
+            $fileInfo = Get-Item $path
+            Write-Host "::info::Found clang at: $path (Size: $($fileInfo.Length / 1MB) MB)"
+            & $path --version
+          }
+        }
+
+    - name: Set LIBCLANG_PATH
+      id: libclang
+      shell: pwsh
+      run: |
+        $targetArch = "${{ inputs.arch }}"
+        Write-Host "::info::Target architecture: $targetArch"
+        
+        $llvmBinDir = $null
+        
+        $llvmPath1 = Join-Path $env:ProgramFiles "LLVM\bin"
+        $llvmPath2 = Join-Path ${env:ProgramFiles(x86)} "LLVM\bin"
+        
+        if ($targetArch -eq "x86_64") {
+          $searchPaths = @($llvmPath1, $llvmPath2)
+        } else {
+          $searchPaths = @($llvmPath2, $llvmPath1)
+        }
+        
+        foreach ($path in $searchPaths) {
+          $libclangPath = Join-Path $path "libclang.dll"
+          Write-Host "::info::Checking for libclang.dll at: $libclangPath"
+          if (Test-Path $libclangPath) {
+            $llvmBinDir = $path
+            Write-Host "::info::Found libclang.dll at: $libclangPath"
+            break
+          }
+        }
+        
+        if ($llvmBinDir) {
+          Add-Content -Path $env:GITHUB_ENV -Value "LIBCLANG_PATH=$llvmBinDir"
+          Add-Content -Path $env:GITHUB_ENV -Value "LLVM_BIN_DIR=$llvmBinDir"
+          Write-Host "::info::Set LIBCLANG_PATH to: $llvmBinDir"
+        } else {
+          Write-Host "::error::libclang.dll not found in any of the searched paths"
+          exit 1
+        }

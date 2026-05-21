@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rustdesk-server.fullname" . }}-hbbr
+  namespace: {{ include "rustdesk-server.namespace" . }}
+  labels:
+    {{- include "rustdesk-server.labels" . | nindent 4 }}
+    app.kubernetes.io/component: hbbr
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "rustdesk-server.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: hbbr
+  template:
+    metadata:
+      labels:
+        {{- include "rustdesk-server.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: hbbr
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+    spec:
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rustdesk-server.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: hbbr
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: {{ .Values.hbbr.command }}
+          {{- if .Values.hbbr.args }}
+          args:
+            {{- toYaml .Values.hbbr.args | nindent 12 }}
+          {{- end }}
+          env:
+            - name: HBBR_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rustdesk-server.fullname" . }}-config
+                  key: HBBR_PORT
+            - name: RELAY_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rustdesk-server.fullname" . }}-config
+                  key: RELAY_PORT
+          ports:
+            - name: hbbr-tcp
+              containerPort: 21116
+              protocol: TCP
+            - name: relay-tcp
+              containerPort: 21117
+              protocol: TCP
+          {{- if .Values.hbbr.livenessProbe }}
+          livenessProbe:
+            {{- toYaml .Values.hbbr.livenessProbe | nindent 12 }}
+          {{- end }}
+          {{- if .Values.hbbr.readinessProbe }}
+          readinessProbe:
+            {{- toYaml .Values.hbbr.readinessProbe | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources.hbbr | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            {{- if .Values.persistence.data.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: /var/log/rustdesk
+            {{- end }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        {{- if .Values.persistence.data.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "rustdesk-server.fullname" . }}-data
+        {{- end }}
+        {{- if .Values.persistence.logs.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "rustdesk-server.fullname" . }}-logs
+        {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 30

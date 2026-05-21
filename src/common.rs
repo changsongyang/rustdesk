@@ -39,7 +39,7 @@ use hbb_common::{
 
 use crate::{
     hbbs_http::{create_http_client_async, get_url_for_tls},
-    ui_interface::{get_api_server as ui_get_api_server, get_option, is_installed, set_option},
+    ui_interface::{get_api_server as ui_get_api_server, get_option, set_option},
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -302,22 +302,21 @@ pub fn resample_channels(
     sample_rate: u32,
     channels: u16,
 ) -> Vec<f32> {
-    use rubato::{
-        InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction,
-    };
+    use rubato::{InterpolationParameters, Resampler, SincFixedIn};
     let params = InterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Nearest,
+        interpolation: rubato::InterpolationType::Nearest,
         oversampling_factor: 160,
-        window: WindowFunction::BlackmanHarris2,
+        window: rubato::WindowFunction::BlackmanHarris2,
     };
     let mut resampler = SincFixedIn::<f64>::new(
         sample_rate as f64 / sample_rate0 as f64,
+        0.9, // f_cutoff: cutoff frequency relative to Nyquist frequency
         params,
-        data.len() / (channels as usize),
         channels as _,
-    );
+        data.len() / (channels as usize),
+    )?;
     let mut waves_in = Vec::new();
     if channels == 2 {
         waves_in.push(
@@ -389,7 +388,7 @@ pub fn audio_resample(
     }
 }
 
-#[cfg(feature = "use_samplerate")]
+#[cfg(all(feature = "use_samplerate", not(feature = "use_dasp")))]
 pub fn audio_resample(
     data: &[f32],
     sample_rate0: u32,
@@ -1081,7 +1080,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    "https://rustdesk.ycsit.cn".to_owned()
 }
 
 #[inline]

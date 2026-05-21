@@ -1,0 +1,449 @@
+# RustDesk Docker Swarm Configuration
+# Docker Swarm 多节点部署配置
+#
+# Usage:
+#   1. Initialize Docker Swarm: docker swarm init
+#   2. Create overlay network: docker network create -d overlay rustdesk-overlay
+#   3. Deploy stack: docker stack deploy -c docker-swarm.yml rustdesk
+#   4. Check services: docker service ls
+#   5. View logs: docker service logs rustdesk_hbbs
+#
+# 使用说明:
+#   1. 初始化 Docker Swarm: docker swarm init
+#   2. 创建 overlay 网络: docker network create -d overlay rustdesk-overlay
+#   3. 部署 stack: docker stack deploy -c docker-swarm.yml rustdesk
+#   4. 查看服务: docker service ls
+#   5. 查看日志: docker service logs rustdesk_hbbs
+
+# ============================================================
+# Docker Stack 部署配置 / Docker Stack Deployment Configuration
+# ============================================================
+services:
+  # ============================================================
+  # hbbs - RustDesk Signal Server (ID Server)
+  # hbbs - RustDesk 信号服务器 (ID 服务器)
+  # ============================================================
+  hbbs:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server}:${RUSTDESK_TAG:-latest}
+    command: hbbs
+    hostname: "{{.Service.Name}}-{{.Task.Slot}}"
+
+    # 端口映射 / Port mapping
+    ports:
+      - mode: host
+        protocol: tcp
+        published: ${HBBS_PORT:-21115}
+        target: 21115
+      - mode: host
+        protocol: udp
+        published: ${HBBS_NAT_PORT:-21117}
+        target: 21117
+
+    # 全局模式：在每个节点运行一个实例 / Global mode: run one instance on each node
+    # 替换为 replicated 模式以限制副本数 / Replace with replicated to limit replicas
+    # mode: global
+    mode: replicated
+    replicas: ${HBBS_REPLICAS:-1}
+
+    # 滚动更新配置 / Rolling update configuration
+    update_config:
+      parallelism: 1
+      delay: 10s
+      failure_action: pause
+      monitor: 30s
+      max_failure_ratio: 0.3
+      order: start-first
+
+    # 副本配置 / Replica configuration
+    replicas: ${HBBS_REPLICAS:-1}
+
+    # 放置约束 / Placement constraints
+    placement:
+      constraints:
+        - "node.role==manager"
+        # - "node.labels.storage==ssd"  # Uncomment to use nodes with specific labels
+        # 取消注释以使用具有特定标签的节点
+      preferences:
+        - spread: on.nodeid
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - type: volume
+        source: hbbs-data
+        target: /root
+      - type: volume
+        source: hbbs-config
+        target: /etc/rustdesk
+      - type: volume
+        source: hbbs-logs
+        target: /var/log/rustdesk
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+
+    # 环境变量 / Environment variables
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - TZ=${TZ:-UTC}
+      - HBBS_ENCRYPTED_ONLY=${HBBS_ENCRYPTED_ONLY:-false}
+      - HBBS_ALLOW_DISCONNECT=${HBBS_ALLOW_DISCONNECT:-true}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-overlay
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${HBBS_CPU_LIMIT:-1.0}'
+          memory: ${HBBS_MEMORY_LIMIT:-512M}
+        reservations:
+          cpus: '${HBBS_CPU_RESERVE:-0.5}'
+          memory: ${HBBS_MEMORY_RESERVE:-256M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:21115/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: false  # Set to true if using tmpfs for /root
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+
+    # 服务标签 / Service labels
+    labels:
+      - "com.rustdesk.version=${RUSTDESK_TAG:-latest}"
+      - "com.rustdesk.service=hbbs"
+      - "com.rustdesk.role=signaling"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+  # ============================================================
+  # hbbr - RustDesk Relay Server
+  # hbbr - RustDesk 中继服务器
+  # ============================================================
+  hbbr:
+    image: ${RUSTDESK_IMAGE:-rustdesk/rustdesk-server}:${RUSTDESK_TAG:-latest}
+    command: hbbr
+    hostname: "{{.Service.Name}}-{{.Task.Slot}}"
+
+    # 端口映射 / Port mapping
+    ports:
+      - mode: host
+        protocol: tcp
+        published: ${HBBR_PORT:-21116}
+        target: 21116
+
+    # 副本配置 / Replica configuration
+    mode: replicated
+    replicas: ${HBBR_REPLICAS:-2}
+
+    # 滚动更新配置 / Rolling update configuration
+    update_config:
+      parallelism: 1
+      delay: 10s
+      failure_action: pause
+      monitor: 30s
+      max_failure_ratio: 0.3
+      order: start-first
+
+    # 放置约束 / Placement constraints
+    placement:
+      constraints:
+        - "node.role==worker"
+        # - "node.labels.bandwidth==high"  # Uncomment for high-bandwidth nodes
+        # 取消注释以使用高带宽节点
+      preferences:
+        - spread: on.nodeid
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - type: volume
+        source: hbbr-data
+        target: /root
+      - type: volume
+        source: hbbr-config
+        target: /etc/rustdesk
+      - type: volume
+        source: hbbr-logs
+        target: /var/log/rustdesk
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+
+    # 环境变量 / Environment variables
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - TZ=${TZ:-UTC}
+      - HBBR_MAX_CONNECTION=${HBBR_MAX_CONNECTION:-4096}
+      - HBBR_ALLOW_DISCONNECT=${HBBR_ALLOW_DISCONNECT:-true}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-overlay
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${HBBR_CPU_LIMIT:-2.0}'
+          memory: ${HBBR_MEMORY_LIMIT:-1024M}
+        reservations:
+          cpus: '${HBBR_CPU_RESERVE:-1.0}'
+          memory: ${HBBR_MEMORY_RESERVE:-512M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:21116/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+
+    # 服务标签 / Service labels
+    labels:
+      - "com.rustdesk.version=${RUSTDESK_TAG:-latest}"
+      - "com.rustdesk.service=hbbr"
+      - "com.rustdesk.role=relay"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+  # ============================================================
+  # 可选: Nginx 反向代理 / Optional: Nginx Reverse Proxy
+  # ============================================================
+  nginx:
+    image: ${NGINX_IMAGE:-nginx}:${NGINX_TAG:-alpine}
+    hostname: nginx-proxy-{{.Task.Slot}}
+
+    # 端口映射 / Port mapping
+    ports:
+      - mode: host
+        protocol: tcp
+        published: ${HTTP_PORT:-80}
+        target: 80
+      - mode: host
+        protocol: tcp
+        published: ${HTTPS_PORT:-443}
+        target: 443
+
+    # 副本配置 / Replica configuration
+    mode: replicated
+    replicas: ${NGINX_REPLICAS:-1}
+
+    # 滚动更新配置 / Rolling update configuration
+    update_config:
+      parallelism: 1
+      delay: 5s
+      failure_action: rollback
+      monitor: 30s
+      max_failure_ratio: 0
+      order: start-first
+
+    # 放置约束 / Placement constraints
+    placement:
+      constraints:
+        - "node.role==manager"
+
+    # 卷挂载 / Volume mounts
+    volumes:
+      - type: volume
+        source: nginx-config
+        target: /etc/nginx
+      - type: volume
+        source: nginx-certs
+        target: /etc/nginx/certs
+        read_only: true
+      - type: volume
+        source: nginx-logs
+        target: /var/log/nginx
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        read_only: true
+
+    # 环境变量 / Environment variables
+    environment:
+      - TZ=${TZ:-UTC}
+      - NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-auto}
+      - NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-2048}
+
+    # 网络配置 / Network configuration
+    networks:
+      - rustdesk-overlay
+
+    # 资源限制 / Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${NGINX_CPU_LIMIT:-0.5}'
+          memory: ${NGINX_MEMORY_LIMIT:-256M}
+        reservations:
+          cpus: '${NGINX_CPU_RESERVE:-0.1}'
+          memory: ${NGINX_MEMORY_RESERVE:-64M}
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+    # 健康检查 / Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    # 安全配置 / Security options
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    # 日志配置 / Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: ${LOG_MAX_FILES:-5}
+
+    # 服务标签 / Service labels
+    labels:
+      - "com.rustdesk.service=nginx"
+      - "com.rustdesk.role=proxy"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+# ============================================================
+# 网络配置 / Network Configuration
+# ============================================================
+networks:
+  rustdesk-overlay:
+    driver: overlay
+    driver_opts:
+      com.docker.network.driver.overlay.vxlanid_list: "256"
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    attachable: true
+    ipam:
+      driver: default
+      config:
+        - subnet: ${OVERLAY_SUBNET:-172.29.0.0/16}
+          gateway: ${OVERLAY_GATEWAY:-172.29.0.1}
+    enable_ipv6: ${NETWORK_IPV6:-false}
+    labels:
+      - "com.rustdesk.network=overlay"
+      - "environment=${DEPLOYMENT_ENV:-production}"
+
+# ============================================================
+# 卷配置 / Volume Configuration
+# ============================================================
+volumes:
+  hbbs-data:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbs-data"
+  hbbr-data:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbr-data"
+  hbbs-config:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbs-config"
+  hbbr-config:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbr-config"
+  hbbs-logs:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbs-logs"
+  hbbr-logs:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=hbbr-logs"
+  nginx-config:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=nginx-config"
+  nginx-certs:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=nginx-certs"
+  nginx-logs:
+    driver: local
+    labels:
+      - "com.rustdesk.volume=nginx-logs"
+
+# ============================================================
+# Docker Swarm 多节点部署最佳实践
+# Docker Swarm Multi-Node Deployment Best Practices
+# ============================================================
+# 1. 节点标签: 使用节点标签控制服务分布
+#    Node labels: Use node labels to control service distribution
+#    docker node update --label-add storage=ssd node-1
+#
+# 2. 高可用性: hbbs 建议至少 2 个副本在 manager 节点
+#    High availability: hbbs recommends at least 2 replicas on manager nodes
+#
+# 3. 负载均衡: relay 服务器分布在多个 worker 节点
+#    Load balancing: Distribute relay servers across multiple worker nodes
+#
+# 4. 数据持久化: 使用分布式存储（如 GlusterFS, NFS）
+#    Data persistence: Use distributed storage (e.g., GlusterFS, NFS)
+#
+# 5. 滚动更新: 逐步更新以避免服务中断
+#    Rolling updates: Update gradually to avoid service interruption
+#
+# 6. 监控: 集成 Prometheus + Grafana 监控集群状态
+#    Monitoring: Integrate Prometheus + Grafana to monitor cluster status
+#
+# 7. 日志聚合: 使用 ELK 或 Loki 收集分布式日志
+#    Log aggregation: Use ELK or Loki to collect distributed logs
+#
+# 8. 备份策略: 定期备份配置和数据卷
+#    Backup strategy: Regularly backup configurations and data volumes

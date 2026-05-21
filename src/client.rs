@@ -36,7 +36,10 @@ use crate::{
     ui_interface::{get_builtin_option, resolve_avatar_url, use_texture_render},
     ui_session_interface::{InvokeUiSession, Session},
 };
-#[cfg(feature = "unix-file-copy-paste")]
+#[cfg(all(
+    feature = "unix-file-copy-paste",
+    any(target_os = "linux", target_os = "macos")
+))]
 use crate::{clipboard::check_clipboard_files, clipboard_file::unix_file_clip};
 pub use file_trait::FileManager;
 #[cfg(not(feature = "flutter"))]
@@ -73,11 +76,9 @@ use hbb_common::{
     AddrMangle, ResultType, Stream,
 };
 pub use helper::*;
-use scrap::{
-    codec::Decoder,
-    record::{Recorder, RecorderContext},
-    CodecFormat, ImageFormat, ImageRgb, ImageTexture,
-};
+#[cfg(not(target_os = "android"))]
+use scrap::record::{Recorder, RecorderContext};
+use scrap::{codec::Decoder, CodecFormat, ImageFormat, ImageRgb, ImageTexture};
 
 #[cfg(not(target_os = "ios"))]
 use crate::clipboard::CLIPBOARD_INTERVAL;
@@ -121,11 +122,9 @@ pub const LOGIN_SCREEN_WAYLAND: &str = "Wayland login screen is not supported";
 #[cfg(target_os = "linux")]
 pub const SCRAP_UBUNTU_HIGHER_REQUIRED: &str = "ubuntu-21-04-required";
 #[cfg(target_os = "linux")]
-pub const SCRAP_OTHER_VERSION_OR_X11_REQUIRED: &str =
-    "wayland-requires-higher-linux-version";
+pub const SCRAP_OTHER_VERSION_OR_X11_REQUIRED: &str = "wayland-requires-higher-linux-version";
 #[cfg(target_os = "linux")]
-pub const SCRAP_XDP_PORTAL_UNAVAILABLE: &str =
-    "xdp-portal-unavailable";
+pub const SCRAP_XDP_PORTAL_UNAVAILABLE: &str = "xdp-portal-unavailable";
 pub const SCRAP_X11_REQUIRED: &str = "x11 expected";
 pub const SCRAP_X11_REF_URL: &str = "https://rustdesk.com/docs/en/manual/linux/#x11-required";
 
@@ -1107,7 +1106,10 @@ impl ClientClipboardHandler {
 
     fn check_clipboard(&mut self) {
         if CLIPBOARD_STATE.lock().unwrap().running {
-            #[cfg(feature = "unix-file-copy-paste")]
+            #[cfg(all(
+                feature = "unix-file-copy-paste",
+                any(target_os = "linux", target_os = "macos")
+            ))]
             if let Some(urls) = check_clipboard_files(&mut self.ctx, ClipboardSide::Client, false) {
                 if !urls.is_empty() {
                     #[cfg(target_os = "macos")]
@@ -1541,7 +1543,10 @@ pub struct VideoHandler {
     decoder: Decoder,
     pub rgb: ImageRgb,
     pub texture: ImageTexture,
+    #[cfg(not(target_os = "android"))]
     recorder: Arc<Mutex<Option<Recorder>>>,
+    #[cfg(target_os = "android")]
+    recorder: (),
     record: bool,
     _display: usize, // useful for debug
     fail_counter: usize,
@@ -1619,6 +1624,7 @@ impl VideoHandler {
                     }
                 }
                 self.first_frame = false;
+                #[cfg(not(target_os = "android"))]
                 if self.record {
                     self.recorder.lock().unwrap().as_mut().map(|r| {
                         let (w, h) = if *pixelbuffer {
@@ -1651,6 +1657,7 @@ impl VideoHandler {
     }
 
     /// Start or stop screen record.
+    #[cfg(not(target_os = "android"))]
     pub fn record_screen(&mut self, start: bool, id: String, display_idx: usize, camera: bool) {
         self.record = false;
         if start {
@@ -1668,6 +1675,11 @@ impl VideoHandler {
         }
 
         self.record = start;
+    }
+
+    #[cfg(target_os = "android")]
+    pub fn record_screen(&mut self, _start: bool, _id: String, _display_idx: usize, _camera: bool) {
+        self.record = false;
     }
 }
 
@@ -2655,16 +2667,15 @@ impl LoginConfigHandler {
         };
         let mut avatar = get_builtin_option(keys::OPTION_AVATAR);
         if avatar.is_empty() {
-            avatar = serde_json::from_str::<serde_json::Value>(&LocalConfig::get_option(
-                "user_info",
-            ))
-            .ok()
-            .and_then(|x| {
-                x.get("avatar")
-                    .and_then(|x| x.as_str())
-                    .map(|x| x.trim().to_owned())
-            })
-            .unwrap_or_default();
+            avatar =
+                serde_json::from_str::<serde_json::Value>(&LocalConfig::get_option("user_info"))
+                    .ok()
+                    .and_then(|x| {
+                        x.get("avatar")
+                            .and_then(|x| x.as_str())
+                            .map(|x| x.trim().to_owned())
+                    })
+                    .unwrap_or_default();
         }
         avatar = resolve_avatar_url(avatar);
         let mut display_name = get_builtin_option(keys::OPTION_DISPLAY_NAME);
@@ -3421,11 +3432,7 @@ async fn consume_local_switch_sides_uuid(id: &str, uuid: &Uuid) -> bool {
         return false;
     }
     match conn.next_timeout(1000).await {
-        Ok(Some(crate::ipc::Data::SwitchSidesUuid(
-            returned_uuid,
-            returned_id,
-            Some(true),
-        ))) => {
+        Ok(Some(crate::ipc::Data::SwitchSidesUuid(returned_uuid, returned_id, Some(true)))) => {
             returned_uuid == uuid && returned_id == id
         }
         _ => false,

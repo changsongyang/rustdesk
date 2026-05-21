@@ -610,7 +610,9 @@ class _DesktopTabState extends State<DesktopTab>
                               .then((value) => stateGlobal.setMaximized(value));
                         }
                       }
-                    : (isIncomingHomePage ? () {} : null), // Keep tap recognizer for Windows touch.
+                    : (isIncomingHomePage
+                        ? () {}
+                        : null), // Keep tap recognizer for Windows touch.
                 onPanStart: (_) => startDragging(isMainWindow),
                 onPanCancel: () {
                   // We want to disable dragging of the tab area in the tab bar.

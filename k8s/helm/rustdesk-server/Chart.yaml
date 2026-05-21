@@ -1,0 +1,20 @@
+apiVersion: v2
+name: rustdesk-server
+description: A Helm chart for RustDesk Server (hbbs and hbbr)
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - rustdesk
+  - remote-desktop
+  - vnc
+  - rdp
+home: https://rustdesk.com
+sources:
+  - https://github.com/rustdesk/rustdesk
+maintainers:
+  - name: RustDesk Team
+    url: https://github.com/rustdesk
+annotations:
+  category: Networking
+  licenses: Apache-2.0

@@ -1,0 +1,198 @@
+# Production Environment Configuration
+# 适用于大规模生产环境部署
+
+replicaCount: 3
+
+createNamespace: true
+
+image:
+  repository: rustdesk/rustdesk-server
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets:
+  - name: rustdesk-registry-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789:role/rustdesk-service-account"
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "21115"
+  prometheus.io/path: "/metrics"
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seLinuxOptions:
+    level: "s0"
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+  hbbs:
+    type: LoadBalancer
+    clusterIP: None
+    ports:
+      hbbsTcp: 21115
+      hbbsUdp: 21115
+      natQuery: 21118
+    nodePort: 32115
+  hbbr:
+    type: LoadBalancer
+    clusterIP: None
+    ports:
+      hbbrTcp: 21116
+      relayTcp: 21117
+    nodePort: 32116
+  enableNodePort: false
+
+ingress:
+  enabled: false
+
+persistence:
+  enabled: true
+  data:
+    enabled: true
+    storageClass: "nfs-client"
+    accessMode: ReadWriteMany
+    size: 100Gi
+    annotations:
+      backup.velero.io/backup-volumes: data
+  logs:
+    enabled: true
+    storageClass: "nfs-client"
+    accessMode: ReadWriteMany
+    size: 20Gi
+    annotations:
+      backup.velero.io/backup-volumes: logs
+
+resources:
+  hbbs:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+      ephemeral-storage: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  hbbr:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+      ephemeral-storage: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+autoscaling:
+  enabled: true
+  hbbs:
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+  hbbr:
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+nodeSelector:
+  node-type: application
+
+tolerations:
+  - key: "node-type"
+    operator: "Equal"
+    value: "application"
+    effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: hbbs
+        topologyKey: topology.kubernetes.io/zone
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: hbbr
+        topologyKey: topology.kubernetes.io/zone
+
+hbbs:
+  env:
+    HBBS_PORT: "21115"
+    ENFORCE_SECURITY: "true"
+  command:
+    - /usr/local/bin/hbbs
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbs-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+hbbr:
+  env:
+    HBBR_PORT: "21116"
+    RELAY_PORT: "21117"
+  command:
+    - /usr/local/bin/hbbr
+    - -k
+  livenessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    tcpSocket:
+      port: hbbr-tcp
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+secrets:
+  enabled: true
+  encryptionKey: ""
+  apiKey: ""
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2

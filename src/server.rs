@@ -67,8 +67,8 @@ pub mod input_service {
 }
 
 mod connection;
-mod login_failure_check;
 pub mod display_service;
+mod login_failure_check;
 #[cfg(windows)]
 pub mod portable_service;
 mod service;
@@ -122,7 +122,10 @@ pub fn new() -> ServerPtr {
         server.add_service(Box::new(clipboard_service::new(
             clipboard_service::NAME.to_owned(),
         )));
-        #[cfg(feature = "unix-file-copy-paste")]
+        #[cfg(all(
+            feature = "unix-file-copy-paste",
+            any(target_os = "linux", target_os = "macos")
+        ))]
         server.add_service(Box::new(clipboard_service::new(
             clipboard_service::FILE_NAME.to_owned(),
         )));
@@ -784,8 +787,7 @@ async fn sync_and_watch_config_dir(sync_done_tx: Option<tokio::sync::oneshot::Se
                 loop {
                     sleep(CONFIG_SYNC_INTERVAL_SECS).await;
                     let cfg = (Config::get(), Config2::get());
-                    let should_sync =
-                        cfg != cfg0 || (is_root_config_empty && !cfg.0.is_empty());
+                    let should_sync = cfg != cfg0 || (is_root_config_empty && !cfg.0.is_empty());
                     if should_sync {
                         if is_root_config_empty {
                             log::info!("root config is empty, sync our config to root");

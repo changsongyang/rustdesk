@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustdesk-hbrs
+  namespace: rustdesk
+  labels:
+    app: rustdesk-hbrs
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbrs
+    app.kubernetes.io/part-of: rustdesk-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rustdesk-hbrs
+  template:
+    metadata:
+      labels:
+        app: rustdesk-hbrs
+        app.kubernetes.io/name: rustdesk
+        app.kubernetes.io/component: hbrs
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "21114"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rustdesk
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: hbrs
+          image: rustdesk/rustdesk-server:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              hbrs -k _
+          ports:
+            - name: relay-tcp
+              containerPort: 21114
+              protocol: TCP
+            - name: relay-udp
+              containerPort: 21117
+              protocol: UDP
+          env:
+            - name: RUST_LOG
+              value: "info"
+          envFrom:
+            - configMapRef:
+                name: rustdesk-hbrs-config
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            tcpSocket:
+              port: 21114
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 21114
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: hbrs-data
+              mountPath: /data
+      volumes:
+        - name: hbrs-data
+          persistentVolumeClaim:
+            claimName: rustdesk-hbrs-data
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: rustdesk-hbrs

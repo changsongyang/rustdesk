@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rustdesk-hbbs-config
+  namespace: rustdesk
+  labels:
+    app.kubernetes.io/name: rustdesk
+    app.kubernetes.io/component: hbbs
+data:
+  HBBS_PORT: "21115"
+  HBBR_PORT: "21116"
+  RELAY_PORT: "21117"
+  NAT_TYPE_QUERY_PORT: "21118"
+  ENFORCE_SECURITY: "true"

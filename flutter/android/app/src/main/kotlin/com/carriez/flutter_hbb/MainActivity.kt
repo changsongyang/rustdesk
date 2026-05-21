@@ -33,6 +33,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import kotlin.concurrent.thread
+import androidx.fragment.app.FragmentActivity
 
 
 class MainActivity : FlutterActivity() {
@@ -49,6 +50,15 @@ class MainActivity : FlutterActivity() {
 
     private var isAudioStart = false
     private val audioRecordHandle = AudioRecordHandle(this, { false }, { isAudioStart })
+    
+    // 安全加密组件
+    private lateinit var securityEncryption: SecurityEncryption
+    // 网络监测组件
+    private lateinit var networkMonitor: NetworkMonitor
+    // 自动重连组件
+    private lateinit var autoReconnectManager: AutoReconnectManager
+    // 生物识别组件
+    private lateinit var biometricAuthenticator: BiometricAuthenticator
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -102,6 +112,61 @@ class MainActivity : FlutterActivity() {
             _rdClipboardManager = RdClipboardManager(getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
             FFI.setClipboardManager(_rdClipboardManager!!)
         }
+        
+        // 初始化优化组件
+        initOptimizationComponents()
+    }
+    
+    private fun initOptimizationComponents() {
+        // 初始化安全加密组件
+        securityEncryption = SecurityEncryption(this)
+        
+        // 初始化网络监测组件
+        networkMonitor = NetworkMonitor(this)
+        networkMonitor.initialize()
+        
+        // 初始化自动重连组件
+        autoReconnectManager = AutoReconnectManager(this)
+        autoReconnectManager.initialize(
+            onReconnectRequired = {
+                Log.d(logTag, "Reconnect required, triggering reconnection")
+                // 触发重连逻辑
+            },
+            onReconnectSuccess = {
+                Log.d(logTag, "Reconnect success")
+                flutterMethodChannel?.invokeMethod("on_reconnect_success", null)
+            },
+            onReconnectFailed = { attempts ->
+                Log.e(logTag, "Reconnect failed after $attempts attempts")
+                flutterMethodChannel?.invokeMethod("on_reconnect_failed", attempts)
+            },
+            onReconnectStateChanged = { state ->
+                Log.d(logTag, "Reconnect state changed: $state")
+                flutterMethodChannel?.invokeMethod("on_reconnect_state", state.name)
+            }
+        )
+        
+        // 初始化生物识别组件
+        biometricAuthenticator = BiometricAuthenticator(this)
+        
+        // 设置网络状态监听器
+        networkMonitor.addNetworkListener(object : NetworkMonitor.NetworkListener {
+            override fun onNetworkStateChanged(state: NetworkMonitor.NetworkState) {
+                Log.d(logTag, "Network state changed: connected=${state.isConnected}, type=${state.networkType}")
+                val networkStateMap = mapOf(
+                    "isConnected" to state.isConnected,
+                    "networkType" to state.networkType.name,
+                    "signalStrength" to state.signalStrength,
+                    "isMetered" to state.isMetered
+                )
+                flutterMethodChannel?.invokeMethod("on_network_state_changed", networkStateMap)
+                
+                // 当网络重新连接时触发自动重连
+                if (state.isConnected) {
+                    autoReconnectManager.triggerReconnect()
+                }
+            }
+        })
     }
 
     override fun onDestroy() {
@@ -272,6 +337,102 @@ class MainActivity : FlutterActivity() {
                 }
                 "on_voice_call_closed" -> {
                     onVoiceCallClosed()
+                }
+                // 安全加密方法
+                "encrypt_data" -> {
+                    if (call.arguments is String) {
+                        val encrypted = securityEncryption.encrypt(call.arguments as String)
+                        result.success(encrypted)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "decrypt_data" -> {
+                    if (call.arguments is String) {
+                        val decrypted = securityEncryption.decrypt(call.arguments as String)
+                        result.success(decrypted)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "set_secure_preference" -> {
+                    if (call.arguments is Map<*, *>) {
+                        val args = call.arguments as Map<String, String>
+                        val key = args["key"]
+                        val value = args["value"]
+                        if (key != null && value != null) {
+                            securityEncryption.getEncryptedSharedPreferences("secure_prefs").edit()
+                                .putString(key, value)
+                                .apply()
+                            result.success(true)
+                        } else {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "get_secure_preference" -> {
+                    if (call.arguments is String) {
+                        val value = securityEncryption.getEncryptedSharedPreferences("secure_prefs")
+                            .getString(call.arguments as String, null)
+                        result.success(value)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                // 生物识别方法
+                "check_biometric_available" -> {
+                    val type = biometricAuthenticator.canAuthenticate()
+                    result.success(type.name)
+                }
+                "has_fingerprint" -> {
+                    result.success(biometricAuthenticator.hasFingerprint())
+                }
+                "has_face_recognition" -> {
+                    result.success(biometricAuthenticator.hasFaceRecognition())
+                }
+                "authenticate_biometric" -> {
+                    biometricAuthenticator.authenticate(this,
+                        title = "验证身份",
+                        subtitle = "使用指纹或面部识别验证",
+                        negativeButtonText = "取消",
+                        callback = object : BiometricAuthenticator.AuthCallback {
+                            override fun onSuccess() {
+                                flutterMethodChannel?.invokeMethod("on_biometric_success", null)
+                            }
+                            override fun onError(errorCode: Int, errorMessage: String) {
+                                flutterMethodChannel?.invokeMethod("on_biometric_error", 
+                                    mapOf("code" to errorCode, "message" to errorMessage))
+                            }
+                            override fun onFailed() {
+                                flutterMethodChannel?.invokeMethod("on_biometric_failed", null)
+                            }
+                        })
+                    result.success(true)
+                }
+                // 网络状态方法
+                "get_network_state" -> {
+                    val state = networkMonitor.getCurrentNetworkState()
+                    val networkStateMap = mapOf(
+                        "isConnected" to state.isConnected,
+                        "networkType" to state.networkType.name,
+                        "signalStrength" to state.signalStrength,
+                        "isMetered" to state.isMetered
+                    )
+                    result.success(networkStateMap)
+                }
+                "is_network_available" -> {
+                    result.success(networkMonitor.isConnected())
+                }
+                // 自动重连方法
+                "trigger_reconnect" -> {
+                    autoReconnectManager.triggerReconnect()
+                    result.success(true)
+                }
+                "cancel_reconnect" -> {
+                    autoReconnectManager.stopReconnect()
+                    result.success(true)
                 }
                 else -> {
                     result.error("-1", "No such method", null)
