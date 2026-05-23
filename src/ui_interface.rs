@@ -783,6 +783,18 @@ pub fn discover() {
     });
 }
 
+#[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
+#[inline]
+pub fn force_discover() {
+    crate::lan::force_discover();
+}
+
+#[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
+#[inline]
+pub fn get_discovery_config() -> HashMap<&'static str, String> {
+    crate::lan::get_discovery_config()
+}
+
 #[cfg(feature = "flutter")]
 pub fn peer_to_map(id: String, p: PeerConfig) -> HashMap<&'static str, String> {
     use hbb_common::sodiumoxide::base64;

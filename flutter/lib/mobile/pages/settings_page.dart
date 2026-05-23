@@ -76,6 +76,8 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
   var _keepScreenOn = KeepScreenOn.duringControlled; // relay on floating window
   var _enableAbr = false;
   var _denyLANDiscovery = false;
+  var _lanDiscoveryInterval = 30;
+  var _lanDiscoveryTimeout = 3;
   var _onlyWhiteList = false;
   var _enableDirectIPAccess = false;
   var _enableRecordSession = false;
@@ -107,6 +109,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
         kOptionEnableAbr, bind.mainGetOptionSync(key: kOptionEnableAbr));
     _denyLANDiscovery = !option2bool(kOptionEnableLanDiscovery,
         bind.mainGetOptionSync(key: kOptionEnableLanDiscovery));
+    _lanDiscoveryInterval = int.tryParse(
+            bind.mainGetOptionSync(key: kOptionLanDiscoveryInterval)) ??
+        30;
+    _lanDiscoveryTimeout = int.tryParse(
+            bind.mainGetOptionSync(key: kOptionLanDiscoveryTimeout)) ??
+        3;
     _onlyWhiteList = whitelistNotEmpty();
     _enableDirectIPAccess = option2bool(
         kOptionDirectServer, bind.mainGetOptionSync(key: kOptionDirectServer));
@@ -247,6 +255,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     }
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   Future<bool> checkAndUpdateIgnoreBatteryStatus() async {
     final res = await AndroidPermissionManager.check(
         kRequestIgnoreBatteryOptimizations);
@@ -361,20 +375,124 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     ];
     final List<AbstractSettingsTile> shareScreenTiles = [
       SettingsTile.switchTile(
-        title: Text(translate('Deny LAN discovery')),
-        initialValue: _denyLANDiscovery,
+        title: Text(translate('Enable LAN discovery')),
+        initialValue: !_denyLANDiscovery,
         onToggle: isOptionFixed(kOptionEnableLanDiscovery)
             ? null
             : (v) async {
                 await bind.mainSetOption(
                     key: kOptionEnableLanDiscovery,
-                    value: bool2option(kOptionEnableLanDiscovery, !v));
+                    value: bool2option(kOptionEnableLanDiscovery, v));
                 final newValue = !option2bool(kOptionEnableLanDiscovery,
                     await bind.mainGetOption(key: kOptionEnableLanDiscovery));
                 setState(() {
-                  _denyLANDiscovery = newValue;
+                  _denyLANDiscovery = !newValue;
                 });
               },
+      ),
+      SettingsTile(
+        title: Text(translate('Discovery interval (seconds)')),
+        description: Text(_lanDiscoveryInterval.toString()),
+        trailing: Icon(Icons.arrow_forward_ios),
+        enabled: !_denyLANDiscovery,
+        onPressed: (context) async {
+          final controller = TextEditingController(
+              text: _lanDiscoveryInterval.toString());
+          final result = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(translate('Discovery interval (seconds)')),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: '$kLanDiscoveryIntervalMin-$kLanDiscoveryIntervalMax',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(translate('Cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, controller.text),
+                  child: Text(translate('OK')),
+                ),
+              ],
+            ),
+          );
+          if (result != null) {
+            final value = int.tryParse(result);
+            if (value != null && value >= kLanDiscoveryIntervalMin && value <= kLanDiscoveryIntervalMax) {
+              await bind.mainSetOption(
+                  key: kOptionLanDiscoveryInterval, value: value.toString());
+              setState(() {
+                _lanDiscoveryInterval = value;
+              });
+            } else {
+              // 显示输入错误提示
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(translate('Invalid value, valid range is $kLanDiscoveryIntervalMin-$kLanDiscoveryIntervalMax')),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        },
+      ),
+      SettingsTile(
+        title: Text(translate('Discovery timeout (seconds)')),
+        description: Text(_lanDiscoveryTimeout.toString()),
+        trailing: Icon(Icons.arrow_forward_ios),
+        enabled: !_denyLANDiscovery,
+        onPressed: (context) async {
+          final controller = TextEditingController(
+              text: _lanDiscoveryTimeout.toString());
+          final result = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(translate('Discovery timeout (seconds)')),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: '$kLanDiscoveryTimeoutMin-$kLanDiscoveryTimeoutMax',
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(translate('Cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, controller.text),
+                  child: Text(translate('OK')),
+                ),
+              ],
+            ),
+          );
+          if (result != null) {
+            final value = int.tryParse(result);
+            if (value != null && value >= kLanDiscoveryTimeoutMin && value <= kLanDiscoveryTimeoutMax) {
+              await bind.mainSetOption(
+                  key: kOptionLanDiscoveryTimeout, value: value.toString());
+              setState(() {
+                _lanDiscoveryTimeout = value;
+              });
+            } else {
+              // 显示输入错误提示
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(translate('Invalid value, valid range is $kLanDiscoveryTimeoutMin-$kLanDiscoveryTimeoutMax')),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        },
       ),
       SettingsTile.switchTile(
         title: Row(children: [

@@ -1149,6 +1149,14 @@ pub fn main_discover() {
     discover();
 }
 
+pub fn main_force_discover(_port: i64) {
+    force_discover();
+}
+
+pub fn main_get_discovery_config() -> String {
+    serde_json::to_string(&get_discovery_config()).unwrap_or_default()
+}
+
 pub fn main_get_api_server() -> String {
     get_api_server()
 }

@@ -90,6 +90,15 @@ const String kOptionOpenInWindows = "allow-open-in-windows";
 const String kOptionForceAlwaysRelay = "force-always-relay";
 const String kOptionViewOnly = "view_only";
 const String kOptionEnableLanDiscovery = "enable-lan-discovery";
+const String kOptionLanDiscoveryInterval = "lan-discovery-interval";
+const String kOptionLanDiscoveryTimeout = "lan-discovery-timeout";
+
+// 网络发现配置参数范围验证常量
+const int kLanDiscoveryIntervalMin = 5;
+const int kLanDiscoveryIntervalMax = 3600;
+const int kLanDiscoveryTimeoutMin = 1;
+const int kLanDiscoveryTimeoutMax = 30;
+
 const String kOptionWhitelist = "whitelist";
 const String kOptionEnableAbr = "enable-abr";
 const String kOptionEnableRecordSession = "enable-record-session";

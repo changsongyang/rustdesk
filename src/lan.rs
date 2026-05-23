@@ -18,10 +18,193 @@ use hbb_common::{
 use std::{
     collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex, OnceLock,
+    },
     time::Instant,
 };
 
 type Message = RendezvousMessage;
+
+// 网络发现配置常量
+const DEFAULT_DISCOVERY_TIMEOUT_MS: u64 = 3000;
+const DEFAULT_DISCOVERY_INTERVAL_SECS: u64 = 30;
+const SIGNATURE_VERSION: &str = "v2";
+// 签名有效期（秒），防止重放攻击
+const SIGNATURE_VALIDITY_SECS: u64 = 60;
+// 时间戳有效期容差（秒），考虑时钟漂移
+const SIGNATURE_TOLERANCE_SECS: u64 = 10;
+
+// 签名有效期缓存，避免重复处理同一时间戳的请求
+// 使用 OnceLock 延迟初始化，避免常量初始化问题
+static SEEN_SIGNATURES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+fn get_seen_signatures() -> &'static Mutex<HashSet<String>> {
+    SEEN_SIGNATURES.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+static LAST_DISCOVERY_TIME: AtomicU64 = AtomicU64::new(0);
+
+/// 生成带时间戳的安全签名
+/// 格式: v2:timestamp:random:hash(device_id:timestamp:random)
+fn get_discovery_signature() -> String {
+    let id = Config::get_id();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let random: u64 = rand_simple(timestamp);
+
+    // 使用 SHA256 生成签名
+    use hbb_common::sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{}:{}:{}", id, timestamp, random).as_bytes());
+    let hash = hex::encode(hasher.finalize());
+
+    // 将 random 包含在签名中，以便验证时可以重新计算 hash
+    format!("{}:{}:{}:{}", SIGNATURE_VERSION, timestamp, random, hash)
+}
+
+/// 简单的伪随机数生成器（基于时间戳种子）
+fn rand_simple(seed: u64) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos().hash(&mut hasher))
+        .ok();
+    hasher.finish()
+}
+
+/// 验证签名有效性并检查重放
+/// 返回 (是否有效, 是否是重复请求)
+fn verify_signature(misc: &str) -> (bool, bool) {
+    if misc.is_empty() {
+        // 允许无签名响应（向后兼容 v1）
+        return (true, false);
+    }
+
+    let parts: Vec<&str> = misc.split(':').collect();
+    
+    // v2 版本签名格式: v2:timestamp:random:hash
+    if parts.len() != 4 || parts[0] != SIGNATURE_VERSION {
+        // 版本不匹配，可能是旧版本或伪造请求
+        log::debug!("signature version mismatch: expected {}, got {:?}", SIGNATURE_VERSION, parts.get(0));
+        return (false, false);
+    }
+
+    // 解析时间戳
+    let timestamp: u64 = match parts[1].parse() {
+        Ok(t) => t,
+        Err(_) => {
+            log::debug!("invalid timestamp in signature");
+            return (false, false);
+        }
+    };
+
+    // 解析随机数
+    let random: u64 = match parts[2].parse() {
+        Ok(r) => r,
+        Err(_) => {
+            log::debug!("invalid random number in signature");
+            return (false, false);
+        }
+    };
+
+    let received_hash = parts[3];
+
+    // 检查时间戳是否在有效期内
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    if timestamp > now + SIGNATURE_TOLERANCE_SECS || now > timestamp + SIGNATURE_VALIDITY_SECS {
+        log::debug!("signature expired or from future: timestamp={}, now={}", timestamp, now);
+        return (false, false);
+    }
+
+    // 验证 hash（核心安全检查）
+    let id = Config::get_id();
+    let expected_hash = {
+        use hbb_common::sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(format!("{}:{}:{}", id, timestamp, random).as_bytes());
+        hex::encode(hasher.finalize())
+    };
+
+    if received_hash != expected_hash {
+        log::debug!("signature hash mismatch: expected={}, received={}", expected_hash, received_hash);
+        return (false, false);
+    }
+
+    // 检查是否重复（防止重放攻击）
+    let signature_key = format!("{}:{}:{}", timestamp, random, received_hash);
+    {
+        let mut seen = get_seen_signatures().lock().unwrap();
+        if seen.contains(&signature_key) {
+            log::debug!("replay attack detected: {}", signature_key);
+            return (true, true); // 有效但重复
+        }
+        seen.insert(signature_key);
+
+        // 清理过期的签名记录（保留最近的有效签名）
+        if seen.len() > 1000 {
+            let retain_count = seen.len() / 2;
+            let keys_to_keep: Vec<_> = seen.iter().take(retain_count).cloned().collect();
+            *seen = keys_to_keep.into_iter().collect();
+        }
+    }
+
+    (true, false) // 验证通过
+}
+
+fn get_discovery_timeout_ms() -> u64 {
+    let timeout = Config::get_option("lan-discovery-timeout");
+    if timeout.is_empty() {
+        DEFAULT_DISCOVERY_TIMEOUT_MS
+    } else {
+        timeout.parse().unwrap_or(DEFAULT_DISCOVERY_TIMEOUT_MS)
+    }
+}
+
+fn get_discovery_interval_secs() -> u64 {
+    let interval = Config::get_option("lan-discovery-interval");
+    if interval.is_empty() {
+        DEFAULT_DISCOVERY_INTERVAL_SECS
+    } else {
+        interval.parse().unwrap_or(DEFAULT_DISCOVERY_INTERVAL_SECS)
+    }
+}
+
+/// 检查设备是否在白名单中
+/// 如果白名单为空或未启用，则允许所有设备
+fn is_device_whitelisted(peer_id: &str) -> bool {
+    let whitelist = Config::get_option("lan-discovery-whitelist");
+    if whitelist.is_empty() {
+        return true; // 白名单为空，允许所有设备
+    }
+    
+    let allowed_ids: Vec<&str> = whitelist.split(',').map(|s| s.trim()).collect();
+    allowed_ids.contains(&peer_id)
+}
+
+fn can_discover() -> bool {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let last = LAST_DISCOVERY_TIME.load(Ordering::Relaxed);
+    let interval = get_discovery_interval_secs();
+    if now > last && now - last >= interval {
+        LAST_DISCOVERY_TIME.store(now, Ordering::Relaxed);
+        true
+    } else {
+        false
+    }
+}
 
 #[cfg(not(target_os = "ios"))]
 pub(super) fn start_listening() -> ResultType<()> {
@@ -45,6 +228,21 @@ pub(super) fn start_listening() -> ResultType<()> {
                             if p.id == id {
                                 continue;
                             }
+                            // Verify ping signature for security
+                            let (valid, is_replay) = verify_signature(&p.misc);
+                            if !valid {
+                                log::debug!("ignored ping with invalid signature from {}", addr);
+                                continue;
+                            }
+                            if is_replay {
+                                // 静默忽略重复请求，不记录日志以避免日志泛滥
+                                continue;
+                            }
+                            // 检查设备是否在白名单中
+                            if !is_device_whitelisted(&p.id) {
+                                log::debug!("ignored ping from non-whitelisted device: {}", p.id);
+                                continue;
+                            }
                             if let Some(self_addr) = get_ipaddr_by_peer(&addr) {
                                 let mut msg_out = Message::new();
                                 let mut hostname = crate::whoami_hostname();
@@ -59,6 +257,7 @@ pub(super) fn start_listening() -> ResultType<()> {
                                     hostname,
                                     username: crate::platform::get_active_username(),
                                     platform: whoami::platform().to_string(),
+                                    misc: get_discovery_signature(),
                                     ..Default::default()
                                 };
                                 msg_out.set_peer_discovery(peer);
@@ -75,12 +274,35 @@ pub(super) fn start_listening() -> ResultType<()> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn discover() -> ResultType<()> {
+    if !can_discover() {
+        log::debug!("discovery skipped due to rate limit");
+        return Ok(());
+    }
+    discover_internal().await
+}
+
+pub async fn discover_internal() -> ResultType<()> {
     let sockets = send_query()?;
-    let rx = spawn_wait_responses(sockets);
+    let timeout_ms = get_discovery_timeout_ms();
+    let rx = spawn_wait_responses(sockets, timeout_ms);
     handle_received_peers(rx).await?;
 
     log::info!("discover ping done");
     Ok(())
+}
+
+pub fn force_discover() {
+    std::thread::spawn(move || {
+        allow_err!(tokio::runtime::Runtime::new().unwrap().block_on(discover_internal()));
+    });
+}
+
+pub fn get_discovery_config() -> HashMap<&'static str, String> {
+    HashMap::from([
+        ("timeout", get_discovery_timeout_ms().to_string()),
+        ("interval", get_discovery_interval_secs().to_string()),
+        ("enabled", Config::get_option("enable-lan-discovery")),
+    ])
 }
 
 pub fn send_wol(id: String) {
@@ -206,6 +428,7 @@ fn send_query() -> ResultType<Vec<UdpSocket>> {
     let peer = PeerDiscovery {
         cmd: "ping".to_owned(),
         id,
+        misc: get_discovery_signature(),
         ..Default::default()
     };
     msg_out.set_peer_discovery(peer);
@@ -221,6 +444,7 @@ fn send_query() -> ResultType<Vec<UdpSocket>> {
 fn wait_response(
     socket: UdpSocket,
     timeout: Option<std::time::Duration>,
+    discovery_timeout_ms: u64,
     tx: UnboundedSender<config::DiscoveryPeer>,
 ) -> ResultType<()> {
     let mut last_recv_time = Instant::now();
@@ -241,6 +465,21 @@ fn wait_response(
                     Some(rendezvous_message::Union::PeerDiscovery(p)) => {
                         last_recv_time = Instant::now();
                         if p.cmd == "pong" {
+                            // Verify signature for security
+                            let (valid, is_replay) = verify_signature(&p.misc);
+                            if !valid {
+                                log::debug!("ignored pong with invalid signature from {}", addr);
+                                continue;
+                            }
+                            if is_replay {
+                                // 静默忽略重复的 pong 响应
+                                continue;
+                            }
+                            // 检查设备是否在白名单中
+                            if !is_device_whitelisted(&p.id) {
+                                log::debug!("ignored pong from non-whitelisted device: {}", p.id);
+                                continue;
+                            }
                             let local_mac = if try_get_ip_by_peer {
                                 if let Some(self_addr) = get_ipaddr_by_peer(&addr) {
                                     get_mac(&self_addr)
@@ -280,21 +519,23 @@ fn wait_response(
                 }
             }
         }
-        if last_recv_time.elapsed().as_millis() > 3_000 {
+        if last_recv_time.elapsed().as_millis() > discovery_timeout_ms as _ {
             break;
         }
     }
     Ok(())
 }
 
-fn spawn_wait_responses(sockets: Vec<UdpSocket>) -> UnboundedReceiver<config::DiscoveryPeer> {
+fn spawn_wait_responses(sockets: Vec<UdpSocket>, discovery_timeout_ms: u64) -> UnboundedReceiver<config::DiscoveryPeer> {
     let (tx, rx) = unbounded_channel::<_>();
     for socket in sockets {
         let tx_clone = tx.clone();
+        let timeout_ms = discovery_timeout_ms;
         std::thread::spawn(move || {
             allow_err!(wait_response(
                 socket,
                 Some(std::time::Duration::from_millis(10)),
+                timeout_ms,
                 tx_clone
             ));
         });

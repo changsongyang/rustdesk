@@ -234,6 +234,29 @@ class _PeerTabPageState extends State<PeerTabPage>
     );
   }
 
+  Widget _createLanRefresh() {
+    final model = Provider.of<PeerTabModel>(context);
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
+    return Offstage(
+      offstage: model.currentTab != PeerTabIndex.lan.index,
+      child: Tooltip(
+        message: translate('Refresh'),
+        child: RefreshWidget(
+            onPressed: () {
+              bind.mainForceDiscover(port: 0);
+              bind.mainLoadLanPeers();
+            },
+            child: RotatedBox(
+                quarterTurns: 2,
+                child: Icon(
+                  Icons.refresh,
+                  size: 18,
+                  color: textColor,
+                ))),
+      ),
+    );
+  }
+
   Widget _createPeerViewTypeSwitch(BuildContext context) {
     return PeerViewDropdown();
   }
@@ -553,6 +576,7 @@ class _PeerTabPageState extends State<PeerTabPage>
     final model = Provider.of<PeerTabModel>(context);
     return [
       const PeerSearchBar().marginOnly(right: 13),
+      _createLanRefresh(),
       _createRefresh(
           index: PeerTabIndex.ab, loading: gFFI.abModel.currentAbLoading),
       _createRefresh(
@@ -620,6 +644,7 @@ class _PeerTabPageState extends State<PeerTabPage>
     // Always show search, refresh
     List<Widget> actions = [
       const PeerSearchBar(),
+      if (model.currentTab == PeerTabIndex.lan.index) _createLanRefresh(),
       if (model.currentTab == PeerTabIndex.ab.index)
         _createRefresh(
             index: PeerTabIndex.ab, loading: gFFI.abModel.currentAbLoading),
