@@ -86,10 +86,12 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ matrix.job.ref }}
           submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Import the codesign cert
         if: env.MACOS_P12_BASE64 != null
@@ -247,10 +249,12 @@ jobs:
             }
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ matrix.job.ref }}
           submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Install dependencies
         run: |
