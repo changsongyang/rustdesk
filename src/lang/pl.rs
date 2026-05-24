@@ -743,7 +743,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Display Name", "Nazwa wyświetlana"),
         ("password-hidden-tip", "Ustawiono (ukryto) stare hasło."),
         ("preset-password-in-use-tip", "Obecnie używane jest hasło domyślne."),
-        ("Enable privacy mode", "Włącz tryb prywatny"),
-        ("allow-remote-toolbar-docking-any-edge", "Zezwalaj na dokowanie zdalnego paska narzędzi do dowolnej krawędzi"),
+        ("Enable privacy mode", ""),
+        ("allow-remote-toolbar-docking-any-edge", ""),
     ].iter().cloned().collect();
 }
