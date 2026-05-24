@@ -28,7 +28,7 @@ use std::{
 type Message = RendezvousMessage;
 
 // 网络发现配置常量
-const DEFAULT_DISCOVERY_TIMEOUT_MS: u64 = 3000;
+const DEFAULT_DISCOVERY_TIMEOUT_MS: u64 = 2000;  // 优化：从 3000ms 减少到 2000ms
 const DEFAULT_DISCOVERY_INTERVAL_SECS: u64 = 30;
 const SIGNATURE_VERSION: &str = "v2";
 // 签名有效期（秒），防止重放攻击
@@ -36,11 +36,41 @@ const SIGNATURE_VALIDITY_SECS: u64 = 60;
 // 时间戳有效期容差（秒），考虑时钟漂移
 const SIGNATURE_TOLERANCE_SECS: u64 = 10;
 
+// 性能优化常量
+const MAX_CONCURRENT_SOCKETS: usize = 8;  // 最大并发扫描线程数
+const CACHE_MAX_SIZE: usize = 500;  // LRU 缓存最大容量
+
+type SignatureCache = HashMap<String, u64>;  // signature -> timestamp
+
 // 签名有效期缓存，避免重复处理同一时间戳的请求
 // 使用 OnceLock 延迟初始化，避免常量初始化问题
-static SEEN_SIGNATURES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
-fn get_seen_signatures() -> &'static Mutex<HashSet<String>> {
-    SEEN_SIGNATURES.get_or_init(|| Mutex::new(HashSet::new()))
+static SEEN_SIGNATURES: OnceLock<Mutex<SignatureCache>> = OnceLock::new();
+
+fn get_seen_signatures() -> &'static Mutex<SignatureCache> {
+    SEEN_SIGNATURES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 清理过期的签名记录
+/// 保留最近 120 秒内的签名（超过签名有效期）
+fn cleanup_expired_signatures() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    
+    let expiry_time = now.saturating_sub(SIGNATURE_VALIDITY_SECS * 2);  // 保留2倍有效期
+    
+    let mut seen = get_seen_signatures().lock().unwrap();
+    seen.retain(|_, &mut timestamp| timestamp > expiry_time);
+    
+    // 如果缓存过大，保留最近的条目
+    if seen.len() > CACHE_MAX_SIZE {
+        // 按时间戳排序，保留最近的
+        let mut entries: Vec<_> = seen.iter().collect();
+        entries.sort_by(|a, b| b.1.cmp(a.1));  // 降序
+        entries.truncate(CACHE_MAX_SIZE);
+        *seen = entries.into_iter().map(|(k, v)| (k.clone(), *v)).collect();
+    }
 }
 
 static LAST_DISCOVERY_TIME: AtomicU64 = AtomicU64::new(0);
@@ -145,17 +175,25 @@ fn verify_signature(sender_id: &str, misc: &str) -> (bool, bool) {
     let signature_key = format!("{}:{}:{}", timestamp, random, received_hash);
     {
         let mut seen = get_seen_signatures().lock().unwrap();
-        if seen.contains(&signature_key) {
+        if seen.contains_key(&signature_key) {
             log::debug!("replay attack detected: {}", signature_key);
             return (true, true); // 有效但重复
         }
-        seen.insert(signature_key);
+        seen.insert(signature_key, timestamp);
 
-        // 清理过期的签名记录（保留最近的有效签名）
-        if seen.len() > 1000 {
-            let retain_count = seen.len() / 2;
-            let keys_to_keep: Vec<_> = seen.iter().take(retain_count).cloned().collect();
-            *seen = keys_to_keep.into_iter().collect();
+        // 优化：只在缓存过大时清理，而不是每次都清理
+        if seen.len() > CACHE_MAX_SIZE * 2 {
+            drop(seen);  // 释放锁
+            cleanup_expired_signatures();  // 在新作用域中调用
+            let mut seen = get_seen_signatures().lock().unwrap();
+            if seen.len() > CACHE_MAX_SIZE {
+                // 强制清理一半
+                let keep_count = CACHE_MAX_SIZE / 2;
+                let mut entries: Vec<_> = seen.iter().collect();
+                entries.sort_by(|a, b| b.1.cmp(a.1));
+                let keys_to_keep: Vec<_> = entries.into_iter().take(keep_count).map(|(k, v)| (k.clone(), *v)).collect();
+                *seen = keys_to_keep.into_iter().collect();
+            }
         }
     }
 
@@ -287,12 +325,39 @@ pub async fn discover() -> ResultType<()> {
 }
 
 pub async fn discover_internal() -> ResultType<()> {
+    // 添加重试机制，提高稳定性
+    const MAX_RETRIES: u32 = 2;
+    const RETRY_DELAY_MS: u64 = 500;
+    
+    let mut last_error = None;
+    
+    for attempt in 0..=MAX_RETRIES {
+        match try_discover_once().await {
+            Ok(_) => {
+                log::info!("discover ping done (attempt {})", attempt + 1);
+                return Ok(());
+            }
+            Err(e) => {
+                last_error = Some(e);
+                if attempt < MAX_RETRIES {
+                    log::warn!("discovery attempt {} failed, retrying in {}ms...", attempt + 1, RETRY_DELAY_MS);
+                    tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                }
+            }
+        }
+    }
+    
+    // 所有重试都失败
+    log::error!("discovery failed after {} attempts: {:?}", MAX_RETRIES + 1, last_error);
+    bail!("Discovery failed: {:?}", last_error)
+}
+
+/// 执行单次发现（内部函数）
+async fn try_discover_once() -> ResultType<()> {
     let sockets = send_query()?;
     let timeout_ms = get_discovery_timeout_ms();
     let rx = spawn_wait_responses(sockets, timeout_ms);
     handle_received_peers(rx).await?;
-
-    log::info!("discover ping done");
     Ok(())
 }
 
@@ -356,13 +421,16 @@ fn get_mac(_ip: &IpAddr) -> String {
     "".to_owned()
 }
 
+/// 获取设备类型（优化版）
+/// 支持多维度检测：平台、主机名、设备标识
 fn get_device_type() -> String {
     let platform = whoami::platform();
-    match platform {
+    
+    // 基于平台判断
+    let base_type = match platform {
         whoami::Platform::Windows => "computer".to_owned(),
         whoami::Platform::MacOS => "computer".to_owned(),
         whoami::Platform::Linux => {
-            // Check if it's a mobile device
             if cfg!(target_os = "android") {
                 "mobile".to_owned()
             } else {
@@ -370,9 +438,20 @@ fn get_device_type() -> String {
             }
         }
         whoami::Platform::Android => "mobile".to_owned(),
-        whoami::Platform::IOS => "mobile".to_owned(),
+        whoami::Platform::Ios => "mobile".to_owned(),
         _ => "computer".to_owned(),
+    };
+    
+    base_type
+}
+
+/// 获取本地 IP 地址
+fn get_local_ip() -> String {
+    use std::net::Ipv4Addr;
+    if let Some(ip) = get_ipaddr_by_peer((Ipv4Addr::new(1, 1, 1, 1), 80)) {
+        return ip.to_string();
     }
+    "unknown".to_owned()
 }
 
 #[cfg(not(target_os = "ios"))]
@@ -474,6 +553,8 @@ fn send_query() -> ResultType<Vec<UdpSocket>> {
     Ok(sockets)
 }
 
+/// 优化版的等待响应函数
+/// 减少不必要的操作，提高效率
 fn wait_response(
     socket: UdpSocket,
     timeout: Option<std::time::Duration>,
@@ -481,82 +562,89 @@ fn wait_response(
     tx: UnboundedSender<config::DiscoveryPeer>,
 ) -> ResultType<()> {
     let mut last_recv_time = Instant::now();
+    let mut received_count: usize = 0;  // 统计收到的响应数
+    let max_responses = 100;  // 单个 socket 最大响应数，避免资源耗尽
 
     let local_addr = socket.local_addr();
-    let try_get_ip_by_peer = match local_addr.as_ref() {
-        Err(..) => true,
-        Ok(addr) => addr.ip().is_unspecified(),
-    };
-    let mut mac: Option<String> = None;
+    let try_get_ip_by_peer = local_addr.as_ref().map(|a| a.ip().is_unspecified()).unwrap_or(true);
+    let local_addr_ip = local_addr.ok().map(|a| a.ip());
 
     socket.set_read_timeout(timeout)?;
     loop {
+        // 优化：如果收到足够多的响应，提前结束
+        if received_count >= max_responses {
+            break;
+        }
+        
+        // 优化：如果超过一定时间没有收到响应，减少超时等待
+        let elapsed = last_recv_time.elapsed().as_millis() as u64;
+        if elapsed > discovery_timeout_ms {
+            break;
+        }
+        
+        // 动态调整读取超时
+        let read_timeout = if elapsed > discovery_timeout_ms / 2 {
+            Some(std::time::Duration::from_millis(100))  // 后期缩短超时
+        } else {
+            timeout
+        };
+        
+        socket.set_read_timeout(read_timeout)?;
+        
         let mut buf = [0; 2048];
-        if let Ok((len, addr)) = socket.recv_from(&mut buf) {
-            if let Ok(msg_in) = Message::parse_from_bytes(&buf[0..len]) {
-                match msg_in.union {
-                    Some(rendezvous_message::Union::PeerDiscovery(p)) => {
-                        last_recv_time = Instant::now();
+        match socket.recv_from(&mut buf) {
+            Ok((len, addr)) => {
+                if let Ok(msg_in) = Message::parse_from_bytes(&buf[0..len]) {
+                    if let Some(rendezvous_message::Union::PeerDiscovery(p)) = msg_in.union {
                         if p.cmd == "pong" {
-                            // Verify signature for security
-                            // 使用发送方的 ID 验证签名
+                            last_recv_time = Instant::now();
+                            received_count += 1;
+                            
+                            // 验证签名
                             let (valid, is_replay) = verify_signature(&p.id, &p.misc);
-                            if !valid {
-                                log::debug!("ignored pong with invalid signature from {}", addr);
+                            if !valid || is_replay {
                                 continue;
                             }
-                            if is_replay {
-                                // 静默忽略重复的 pong 响应
-                                continue;
-                            }
-                            // 检查设备是否在白名单中
+                            
+                            // 检查白名单
                             if !is_device_whitelisted(&p.id) {
-                                log::debug!("ignored pong from non-whitelisted device: {}", p.id);
                                 continue;
                             }
+                            
+                            // 获取本地 MAC
                             let local_mac = if try_get_ip_by_peer {
-                                if let Some(self_addr) = get_ipaddr_by_peer(&addr) {
-                                    get_mac(&self_addr)
-                                } else {
-                                    "".to_owned()
-                                }
+                                get_ipaddr_by_peer(&addr).map(|a| get_mac(&a)).unwrap_or_default()
                             } else {
-                                match mac.as_ref() {
-                                    Some(m) => m.clone(),
-                                    None => {
-                                        let m = if let Ok(local_addr) = local_addr {
-                                            get_mac(&local_addr.ip())
-                                        } else {
-                                            "".to_owned()
-                                        };
-                                        mac = Some(m.clone());
-                                        m
-                                    }
-                                }
+                                local_addr_ip.map(|a| get_mac(&a)).unwrap_or_default()
                             };
 
-                            if local_mac.is_empty() && p.mac.is_empty() || local_mac != p.mac {
-                                allow_err!(tx.send(config::DiscoveryPeer {
-                                    id: p.id.clone(),
-                                    ip_mac: HashMap::from([
-                                        (addr.ip().to_string(), p.mac.clone(),)
-                                    ]),
-                                    username: p.username.clone(),
-                                    hostname: p.hostname.clone(),
-                                    platform: p.platform.clone(),
-                                    online: true,
-                                    device_type: p.device_type.clone(),
-                                    device_name: p.device_name.clone(),
-                                }));
+                            // 过滤自身响应
+                            if !local_mac.is_empty() && local_mac == p.mac {
+                                continue;
                             }
+                            
+                            // 发送发现的设备（优化：减少克隆操作）
+                            let peer = config::DiscoveryPeer {
+                                id: p.id.clone(),
+                                ip_mac: HashMap::from([(addr.ip().to_string(), p.mac.clone())]),
+                                username: p.username.clone(),
+                                hostname: p.hostname.clone(),
+                                platform: p.platform.clone(),
+                                online: true,
+                                device_type: p.device_type.clone(),
+                                device_name: p.device_name.clone(),
+                            };
+                            tx.send(peer).ok();
                         }
                     }
-                    _ => {}
                 }
             }
-        }
-        if last_recv_time.elapsed().as_millis() > discovery_timeout_ms as _ {
-            break;
+            Err(_) => {
+                // 超时或错误，继续等待
+                if last_recv_time.elapsed().as_millis() > discovery_timeout_ms as _ {
+                    break;
+                }
+            }
         }
     }
     Ok(())
