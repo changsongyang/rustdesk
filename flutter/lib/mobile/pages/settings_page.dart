@@ -426,9 +426,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             } else {
               // 显示输入错误提示
               if (!context.mounted) return;
+              final errorMsg = translate('Invalid value, valid range is {}-{}')
+                  .replaceAll('{}', kLanDiscoveryIntervalMin.toString())
+                  .replaceFirst('{}', kLanDiscoveryIntervalMax.toString());
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(translate('Invalid value, valid range is $kLanDiscoveryIntervalMin-$kLanDiscoveryIntervalMax')),
+                  content: Text(errorMsg),
                   duration: const Duration(seconds: 3),
                 ),
               );
@@ -478,9 +481,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
             } else {
               // 显示输入错误提示
               if (!context.mounted) return;
+              final errorMsg = translate('Invalid value, valid range is {}-{}')
+                  .replaceAll('{}', kLanDiscoveryTimeoutMin.toString())
+                  .replaceFirst('{}', kLanDiscoveryTimeoutMax.toString());
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(translate('Invalid value, valid range is $kLanDiscoveryTimeoutMin-$kLanDiscoveryTimeoutMax')),
+                  content: Text(errorMsg),
                   duration: const Duration(seconds: 3),
                 ),
               );

@@ -80,7 +80,8 @@ fn rand_simple(seed: u64) -> u64 {
 
 /// 验证签名有效性并检查重放
 /// 返回 (是否有效, 是否是重复请求)
-fn verify_signature(misc: &str) -> (bool, bool) {
+/// sender_id: 发送方的设备 ID，用于验证签名
+fn verify_signature(sender_id: &str, misc: &str) -> (bool, bool) {
     if misc.is_empty() {
         // 允许无签名响应（向后兼容 v1）
         return (true, false);
@@ -127,11 +128,11 @@ fn verify_signature(misc: &str) -> (bool, bool) {
     }
 
     // 验证 hash（核心安全检查）
-    let id = Config::get_id();
+    // 使用发送方的 ID 来验证签名
     let expected_hash = {
         use hbb_common::sha2::{Sha256, Digest};
         let mut hasher = Sha256::new();
-        hasher.update(format!("{}:{}:{}", id, timestamp, random).as_bytes());
+        hasher.update(format!("{}:{}:{}", sender_id, timestamp, random).as_bytes());
         hex::encode(hasher.finalize())
     };
 
@@ -229,7 +230,8 @@ pub(super) fn start_listening() -> ResultType<()> {
                                 continue;
                             }
                             // Verify ping signature for security
-                            let (valid, is_replay) = verify_signature(&p.misc);
+                            // 使用发送方的 ID 验证签名
+                            let (valid, is_replay) = verify_signature(&p.id, &p.misc);
                             if !valid {
                                 log::debug!("ignored ping with invalid signature from {}", addr);
                                 continue;
@@ -466,7 +468,8 @@ fn wait_response(
                         last_recv_time = Instant::now();
                         if p.cmd == "pong" {
                             // Verify signature for security
-                            let (valid, is_replay) = verify_signature(&p.misc);
+                            // 使用发送方的 ID 验证签名
+                            let (valid, is_replay) = verify_signature(&p.id, &p.misc);
                             if !valid {
                                 log::debug!("ignored pong with invalid signature from {}", addr);
                                 continue;
