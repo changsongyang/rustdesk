@@ -3949,7 +3949,7 @@ class FFI {
   /// Start LAN discovery periodic scanning
   void startLanDiscoveryTimer() {
     stopLanDiscoveryTimer();
-    _lanDiscoveryInterval = int.tryParse(bind.mainGetOption(key: kOptionLanDiscoveryInterval) ?? '30') ?? 30;
+    _lanDiscoveryInterval = int.tryParse(bind.mainGetOption(key: kOptionLanDiscoveryInterval)?.toString() ?? '30') ?? 30;
     if (_lanDiscoveryInterval < 10) _lanDiscoveryInterval = 10;
     if (_lanDiscoveryInterval > 300) _lanDiscoveryInterval = 300;
 

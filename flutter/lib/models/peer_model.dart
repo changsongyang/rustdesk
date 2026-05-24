@@ -115,6 +115,8 @@ class Peer {
     required this.device_group_name,
     required this.note,
     this.sameServer,
+    this.deviceType = '',
+    this.deviceName = '',
   });
 
   Peer.loading()
