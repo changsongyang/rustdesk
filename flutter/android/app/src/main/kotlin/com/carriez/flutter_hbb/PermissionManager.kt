@@ -42,26 +42,26 @@ class PermissionManager(private val activity: Activity) {
     private val permissionGroups = mapOf(
         "audio" to PermissionGroup(
             permissions = arrayOf(Manifest.permission.RECORD_AUDIO),
-            title = "录音权限",
-            description = "用于远程会话中的音频传输，让您可以听到远程设备的声音",
-            required = true
+            title = "音频传输权限",
+            description = "用于远程桌面会话中的音频传输功能。该权限仅在您主动发起远程连接时使用，不会在后台录音或收集隐私内容。",
+            required = false
         ),
         "storage" to PermissionGroup(
             permissions = getStoragePermissions(),
-            title = "存储权限",
-            description = "用于文件传输功能，允许您在远程设备之间传输文件",
+            title = "文件传输权限",
+            description = "用于在远程设备之间安全传输文件。该权限仅在您主动选择文件传输功能时使用，不会访问或上传您的个人文件。",
             required = false
         ),
         "overlay" to PermissionGroup(
             permissions = arrayOf(Manifest.permission.SYSTEM_ALERT_WINDOW),
-            title = "悬浮窗权限",
-            description = "用于显示远程会话控制窗口，方便您快速操作",
+            title = "远程控制界面权限",
+            description = "用于显示远程会话控制窗口，方便您操作远程设备。该权限仅在远程桌面会话期间使用。",
             required = false
         ),
         "battery" to PermissionGroup(
             permissions = arrayOf(Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS),
-            title = "电池优化权限",
-            description = "用于防止应用被系统电池优化限制，确保后台正常运行",
+            title = "后台运行权限",
+            description = "用于防止应用被系统电池优化限制，确保远程桌面服务稳定运行。该设置可在应用设置中随时关闭。",
             required = false
         )
     )
@@ -135,16 +135,16 @@ class PermissionManager(private val activity: Activity) {
         onConfirm: () -> Unit
     ) {
         AlertDialog.Builder(activity)
-            .setTitle(group.title)
+            .setTitle("权限说明 - ${group.title}")
             .setMessage(group.description)
-            .setPositiveButton("授权") { dialog, _ ->
+            .setPositiveButton("我已了解，前往授权") { dialog, _ ->
                 dialog.dismiss()
                 onConfirm()
             }
-            .setNegativeButton("取消") { dialog, _ ->
+            .setNegativeButton("暂时不需要") { dialog, _ ->
                 dialog.dismiss()
             }
-            .setCancelable(false)
+            .setCancelable(true)
             .show()
     }
 
