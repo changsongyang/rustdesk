@@ -255,12 +255,6 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
     }
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
   Future<bool> checkAndUpdateIgnoreBatteryStatus() async {
     final res = await AndroidPermissionManager.check(
         kRequestIgnoreBatteryOptimizations);
