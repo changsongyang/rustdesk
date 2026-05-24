@@ -3602,6 +3602,10 @@ class FFI {
   var connType = ConnType.defaultConn;
   var closed = false;
 
+  /// LAN discovery periodic timer
+  Timer? _lanDiscoveryTimer;
+  int _lanDiscoveryInterval = 30; // default 30 seconds
+
   /// dialogManager use late to ensure init after main page binding [globalKey]
   late final dialogManager = OverlayDialogManager();
 
@@ -3914,6 +3918,8 @@ class FFI {
       model.dispose();
     }
     _terminalModels.clear();
+    // Stop LAN discovery timer to prevent memory leaks
+    stopLanDiscoveryTimer();
     if (imageModel.image != null && !isWebDesktop) {
       await setCanvasConfig(
           sessionId,
@@ -3938,6 +3944,39 @@ class FFI {
     }
     debugPrint('model $id closed');
     id = '';
+  }
+
+  /// Start LAN discovery periodic scanning
+  void startLanDiscoveryTimer() {
+    stopLanDiscoveryTimer();
+    _lanDiscoveryInterval = int.tryParse(bind.mainGetOption(key: kOptionLanDiscoveryInterval) ?? '30') ?? 30;
+    if (_lanDiscoveryInterval < 10) _lanDiscoveryInterval = 10;
+    if (_lanDiscoveryInterval > 300) _lanDiscoveryInterval = 300;
+
+    _lanDiscoveryTimer = Timer.periodic(Duration(seconds: _lanDiscoveryInterval), (timer) {
+      if (!closed) {
+        final enabled = bind.mainGetOption(key: kOptionEnableLanDiscovery) != 'N';
+        if (enabled) {
+          bind.mainForceDiscover(port: 0);
+        }
+      }
+    });
+    debugPrint('LAN discovery timer started with interval: ${_lanDiscoveryInterval}s');
+  }
+
+  /// Stop LAN discovery periodic scanning
+  void stopLanDiscoveryTimer() {
+    _lanDiscoveryTimer?.cancel();
+    _lanDiscoveryTimer = null;
+    debugPrint('LAN discovery timer stopped');
+  }
+
+  /// Update LAN discovery interval
+  void updateLanDiscoveryInterval(int interval) {
+    _lanDiscoveryInterval = interval;
+    if (_lanDiscoveryInterval < 10) _lanDiscoveryInterval = 10;
+    if (_lanDiscoveryInterval > 300) _lanDiscoveryInterval = 300;
+    startLanDiscoveryTimer();
   }
 
   void setMethodCallHandler(FMethod callback) {

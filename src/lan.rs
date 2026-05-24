@@ -256,10 +256,13 @@ pub(super) fn start_listening() -> ResultType<()> {
                                     cmd: "pong".to_owned(),
                                     mac: get_mac(&self_addr),
                                     id,
-                                    hostname,
+                                    hostname: hostname.clone(),
                                     username: crate::platform::get_active_username(),
                                     platform: whoami::platform().to_string(),
                                     misc: get_discovery_signature(),
+                                    device_type: get_device_type(),
+                                    ip_address: self_addr.to_string(),
+                                    device_name: hostname,
                                     ..Default::default()
                                 };
                                 msg_out.set_peer_discovery(peer);
@@ -295,7 +298,16 @@ pub async fn discover_internal() -> ResultType<()> {
 
 pub fn force_discover() {
     std::thread::spawn(move || {
-        allow_err!(tokio::runtime::Runtime::new().unwrap().block_on(discover_internal()));
+        let runtime = match tokio::runtime::Runtime::new() {
+            Ok(r) => r,
+            Err(e) => {
+                log::error!("failed to create Tokio runtime for LAN discovery: {}", e);
+                return;
+            }
+        };
+        if let Err(e) = runtime.block_on(discover_internal()) {
+            log::error!("LAN discovery failed: {}", e);
+        }
     });
 }
 
@@ -342,6 +354,25 @@ fn get_mac(_ip: &IpAddr) -> String {
     }
     #[cfg(target_os = "ios")]
     "".to_owned()
+}
+
+fn get_device_type() -> String {
+    let platform = whoami::platform();
+    match platform {
+        whoami::Platform::Windows => "computer".to_owned(),
+        whoami::Platform::MacOS => "computer".to_owned(),
+        whoami::Platform::Linux => {
+            // Check if it's a mobile device
+            if cfg!(target_os = "android") {
+                "mobile".to_owned()
+            } else {
+                "computer".to_owned()
+            }
+        }
+        whoami::Platform::Android => "mobile".to_owned(),
+        whoami::Platform::IOS => "mobile".to_owned(),
+        _ => "computer".to_owned(),
+    }
 }
 
 #[cfg(not(target_os = "ios"))]
@@ -514,6 +545,8 @@ fn wait_response(
                                     hostname: p.hostname.clone(),
                                     platform: p.platform.clone(),
                                     online: true,
+                                    device_type: p.device_type.clone(),
+                                    device_name: p.device_name.clone(),
                                 }));
                             }
                         }

@@ -22,6 +22,8 @@ class Peer {
   String device_group_name;
   String note;
   bool? sameServer;
+  String deviceType; // device type: computer, mobile, etc.
+  String deviceName; // friendly device name
 
   String getId() {
     if (alias != '') {
@@ -45,7 +47,9 @@ class Peer {
         loginName = json['loginName'] ?? '',
         device_group_name = json['device_group_name'] ?? '',
         note = json['note'] is String ? json['note'] : '',
-        sameServer = json['same_server'];
+        sameServer = json['same_server'],
+        deviceType = json['device_type'] ?? '',
+        deviceName = json['device_name'] ?? '';
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -64,6 +68,8 @@ class Peer {
       'device_group_name': device_group_name,
       'note': note,
       'same_server': sameServer,
+      'device_type': deviceType,
+      'device_name': deviceName,
     };
   }
 

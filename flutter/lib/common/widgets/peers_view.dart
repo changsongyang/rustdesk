@@ -26,12 +26,16 @@ class PeerSortType {
   static const String remoteHost = 'Remote Host';
   static const String username = 'Username';
   static const String status = 'Status';
+  static const String deviceType = 'Device Type';
+  static const String ipAddress = 'IP Address';
 
   static List<String> values = [
     PeerSortType.remoteId,
     PeerSortType.remoteHost,
     PeerSortType.username,
-    PeerSortType.status
+    PeerSortType.status,
+    PeerSortType.deviceType,
+    PeerSortType.ipAddress,
   ];
 }
 
@@ -389,6 +393,12 @@ class _PeersViewState extends State<_PeersView>
         case PeerSortType.status:
           peers.sort((p1, p2) => p1.online ? -1 : 1);
           break;
+        case PeerSortType.deviceType:
+          peers.sort((p1, p2) => (p1.platform ?? '').toLowerCase().compareTo((p2.platform ?? '').toLowerCase()));
+          break;
+        case PeerSortType.ipAddress:
+          peers.sort((p1, p2) => _compareIpAddresses(p1, p2));
+          break;
       }
     }
 
@@ -407,6 +417,37 @@ class _PeersViewState extends State<_PeersView>
     }
 
     return filteredList;
+  }
+
+  /// Compare two peers by their IP addresses
+  int _compareIpAddresses(Peer p1, Peer p2) {
+    final ip1 = _getFirstIpAddress(p1);
+    final ip2 = _getFirstIpAddress(p2);
+    return _compareIpString(ip1, ip2);
+  }
+
+  /// Get the first IP address from peer's ip_mac map
+  String _getFirstIpAddress(Peer peer) {
+    // Note: Peer class doesn't directly have ip_mac exposed, this is for future use
+    // For now, return empty string
+    return '';
+  }
+
+  /// Compare two IP address strings
+  int _compareIpString(String ip1, String ip2) {
+    if (ip1.isEmpty && ip2.isEmpty) return 0;
+    if (ip1.isEmpty) return -1;
+    if (ip2.isEmpty) return 1;
+
+    final parts1 = ip1.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+    final parts2 = ip2.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+
+    for (int i = 0; i < 4; i++) {
+      final p1 = i < parts1.length ? parts1[i] : 0;
+      final p2 = i < parts2.length ? parts2[i] : 0;
+      if (p1 != p2) return p1.compareTo(p2);
+    }
+    return 0;
   }
 }
 

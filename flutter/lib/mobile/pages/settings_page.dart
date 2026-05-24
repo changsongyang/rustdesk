@@ -427,7 +427,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               // 显示输入错误提示
               if (!context.mounted) return;
               final errorMsg = translate('Invalid value, valid range is {}-{}')
-                  .replaceAll('{}', kLanDiscoveryIntervalMin.toString())
+                  .replaceFirst('{}', kLanDiscoveryIntervalMin.toString())
                   .replaceFirst('{}', kLanDiscoveryIntervalMax.toString());
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -482,7 +482,7 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
               // 显示输入错误提示
               if (!context.mounted) return;
               final errorMsg = translate('Invalid value, valid range is {}-{}')
-                  .replaceAll('{}', kLanDiscoveryTimeoutMin.toString())
+                  .replaceFirst('{}', kLanDiscoveryTimeoutMin.toString())
                   .replaceFirst('{}', kLanDiscoveryTimeoutMax.toString());
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
