@@ -19,10 +19,10 @@ use std::{
     collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket},
     sync::{
-        atomic::{AtomicU64, Ordering},
-        Mutex, OnceLock,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Arc, Mutex, OnceLock,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 type Message = RendezvousMessage;
@@ -48,6 +48,32 @@ static SEEN_SIGNATURES: OnceLock<Mutex<SignatureCache>> = OnceLock::new();
 
 fn get_seen_signatures() -> &'static Mutex<SignatureCache> {
     SEEN_SIGNATURES.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// 检查 IP 地址是否为私有/保留地址
+/// 这些地址不应该出现在 LAN 发现结果中
+fn is_reserved_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ipv4) => {
+            // 检查回环地址 (127.0.0.0/8)
+            if ipv4.is_loopback() {
+                return true;
+            }
+            // 检查链接本地地址 (169.254.0.0/16)
+            if ipv4.is_link_local() {
+                return true;
+            }
+            // 检查未指定地址 (0.0.0.0)
+            if ipv4.octets()[0] == 0 {
+                return true;
+            }
+            false
+        }
+        IpAddr::V6(ipv6) => {
+            // 检查 IPv6 回环地址 (::1)
+            ipv6.is_loopback() || ipv6.is_unspecified()
+        }
+    }
 }
 
 /// 清理过期的签名记录
@@ -594,12 +620,17 @@ fn wait_response(
         let mut buf = [0; 2048];
         match socket.recv_from(&mut buf) {
             Ok((len, addr)) => {
+                // 安全加固：过滤保留/私有 IP 地址
+                if is_reserved_ip(&addr.ip()) {
+                    continue;
+                }
+
                 if let Ok(msg_in) = Message::parse_from_bytes(&buf[0..len]) {
                     if let Some(rendezvous_message::Union::PeerDiscovery(p)) = msg_in.union {
                         if p.cmd == "pong" {
                             last_recv_time = Instant::now();
                             received_count += 1;
-                            
+
                             // 验证签名
                             let (valid, is_replay) = verify_signature(&p.id, &p.misc);
                             if !valid || is_replay {
@@ -652,16 +683,28 @@ fn wait_response(
 
 fn spawn_wait_responses(sockets: Vec<UdpSocket>, discovery_timeout_ms: u64) -> UnboundedReceiver<config::DiscoveryPeer> {
     let (tx, rx) = unbounded_channel::<_>();
+    // 使用原子计数器控制并发线程数
+    let active_threads = Arc::new(AtomicUsize::new(0));
     for socket in sockets {
         let tx_clone = tx.clone();
         let timeout_ms = discovery_timeout_ms;
+        let active_threads_clone = Arc::clone(&active_threads);
+
         std::thread::spawn(move || {
+            // 检查是否超过最大并发数
+            if active_threads_clone.fetch_add(1, Ordering::SeqCst) >= MAX_CONCURRENT_SOCKETS {
+                active_threads_clone.fetch_sub(1, Ordering::SeqCst);
+                // 等待一个线程完成
+                std::thread::sleep(Duration::from_millis(50));
+                active_threads_clone.fetch_add(1, Ordering::SeqCst);
+            }
             allow_err!(wait_response(
                 socket,
                 Some(std::time::Duration::from_millis(10)),
                 timeout_ms,
                 tx_clone
             ));
+            active_threads_clone.fetch_sub(1, Ordering::SeqCst);
         });
     }
     rx

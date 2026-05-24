@@ -1040,7 +1040,13 @@ pub fn main_get_options_sync() -> SyncReturn<String> {
 }
 
 pub fn main_set_options(json: String) {
-    let mut map: HashMap<String, String> = serde_json::from_str(&json).unwrap_or(HashMap::new());
+    let mut map: HashMap<String, String> = match serde_json::from_str(&json) {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("Failed to parse main_set_options JSON: {}", e);
+            return;
+        }
+    };
     #[cfg(target_os = "android")]
     {
         let allow_perm_change_in_accept_window = config::option2bool(

@@ -3606,6 +3606,13 @@ class FFI {
   Timer? _lanDiscoveryTimer;
   int _lanDiscoveryInterval = 30; // default 30 seconds
 
+  /// LAN discovery debounce timer to avoid frequent UI updates
+  Timer? _lanDiscoveryDebounceTimer;
+
+  /// Last update cache for LAN peers to avoid frequent updates
+  final Map<String, DateTime> _lanPeersUpdateCache = {};
+  static const _lanPeersUpdateMinInterval = Duration(milliseconds: 500);
+
   /// dialogManager use late to ensure init after main page binding [globalKey]
   late final dialogManager = OverlayDialogManager();
 
@@ -3939,6 +3946,12 @@ class FFI {
     // Dispose relative mouse mode resources to ensure cursor is restored
     inputModel.disposeRelativeMouseMode();
     inputModel.disposeSideButtonTracking();
+    // Cleanup LAN discovery timers
+    _lanDiscoveryTimer?.cancel();
+    _lanDiscoveryTimer = null;
+    _lanDiscoveryDebounceTimer?.cancel();
+    _lanDiscoveryDebounceTimer = null;
+    _lanPeersUpdateCache.clear();
     if (closeSession) {
       await bind.sessionClose(sessionId: sessionId);
     }
@@ -3946,10 +3959,23 @@ class FFI {
     id = '';
   }
 
+  /// Check if LAN peers update should be throttled
+  /// Returns true if update should proceed, false if too frequent
+  bool shouldUpdateLanPeers(String peerId) {
+    final now = DateTime.now();
+    final lastUpdate = _lanPeersUpdateCache[peerId];
+    if (lastUpdate != null &&
+        now.difference(lastUpdate) < _lanPeersUpdateMinInterval) {
+      return false;
+    }
+    _lanPeersUpdateCache[peerId] = now;
+    return true;
+  }
+
   /// Start LAN discovery periodic scanning
   void startLanDiscoveryTimer() {
     stopLanDiscoveryTimer();
-    _lanDiscoveryInterval = int.tryParse(bind.mainGetOption(key: kOptionLanDiscoveryInterval)?.toString() ?? '30') ?? 30;
+    _lanDiscoveryInterval = int.tryParse(bind.mainGetOption(key: kOptionLanDiscoveryInterval).toString()) ?? 30;
     if (_lanDiscoveryInterval < 10) _lanDiscoveryInterval = 10;
     if (_lanDiscoveryInterval > 300) _lanDiscoveryInterval = 300;
 
