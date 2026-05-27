@@ -839,7 +839,15 @@ async fn handle(data: Data, stream: &mut Connection) {
                         "N".to_owned()
                     });
                 } else if name == "permanent-password-is-preset" {
-                    value = Some(if Config::is_using_preset_password() {
+                    let hard = config::HARD_SETTINGS
+                        .read()
+                        .unwrap()
+                        .get("password")
+                        .cloned()
+                        .unwrap_or_default();
+                    let is_preset =
+                        !hard.is_empty() && Config::matches_permanent_password_plain(&hard);
+                    value = Some(if is_preset {
                         "Y".to_owned()
                     } else {
                         "N".to_owned()
@@ -890,7 +898,7 @@ async fn handle(data: Data, stream: &mut Connection) {
                         log::warn!("Changing permanent password is disabled");
                         updated = false;
                     } else {
-                        updated = Config::set_permanent_password(&value);
+                        Config::set_permanent_password(&value);
                     }
                     // Explicitly ACK/NACK permanent-password writes. This allows UIs/FFI to
                     // distinguish "accepted by daemon" vs "IPC send succeeded" without
@@ -1541,6 +1549,11 @@ fn apply_permanent_password_storage_and_salt_payload(payload: Option<&str>) -> R
     let Some((storage, salt)) = payload.split_once('\n') else {
         bail!("Invalid permanent-password-storage-and-salt payload");
     };
+
+    if storage.is_empty() {
+        Config::set_permanent_password_storage_for_sync("", "")?;
+        return Ok(());
+    }
 
     Config::set_permanent_password_storage_for_sync(storage, salt)?;
     Ok(())

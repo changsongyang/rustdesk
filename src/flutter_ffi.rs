@@ -2471,13 +2471,23 @@ pub fn is_disable_installation() -> SyncReturn<bool> {
 }
 
 pub fn is_preset_password() -> bool {
+    let hard = config::HARD_SETTINGS
+        .read()
+        .unwrap()
+        .get("password")
+        .cloned()
+        .unwrap_or_default();
+    if hard.is_empty() {
+        return false;
+    }
+
     // On desktop, service owns the authoritative config; query it via IPC and return only a boolean.
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     return crate::ipc::is_permanent_password_preset();
 
     // On mobile, we have no service IPC; verify against local storage.
     #[cfg(any(target_os = "android", target_os = "ios"))]
-    return config::Config::is_using_preset_password();
+    return config::Config::matches_permanent_password_plain(&hard);
 }
 
 // Don't call this function for desktop version.
