@@ -16,6 +16,9 @@ on:
   push:
     branches:
       - master
+      - main
+      - 3.0.0
+      - 3.0.0-dev
     paths-ignore:
       - ".github/**"
       - "docs/**"
