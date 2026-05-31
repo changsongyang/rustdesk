@@ -2,6 +2,7 @@
 /target
 .vscode
 .idea
+.cargo/
 .DS_Store
 .env
 libsciter-gtk.so
