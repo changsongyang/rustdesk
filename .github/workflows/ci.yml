@@ -68,6 +68,9 @@ jobs:
   build:
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
+    env:
+      RENDEZVOUS_SERVER: ${{ vars.RENDEZVOUS_SERVER }}
+      RS_PUB_KEY: ${{ vars.RS_PUB_KEY }}
     strategy:
       fail-fast: false
       matrix:
