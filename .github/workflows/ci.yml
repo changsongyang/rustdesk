@@ -6,6 +6,10 @@ env:
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
   # for multiarch gcc compatibility
   VCPKG_COMMIT_ID: "120deac3062162151622ca4860575a33844ba10b"
+  # Custom server configuration
+  RENDEZVOUS_SERVER: "${{ secrets.RENDEZVOUS_SERVER }}"
+  RS_PUB_KEY: "${{ secrets.RS_PUB_KEY }}"
+  API_SERVER: "${{ secrets.API_SERVER }}"
 
 on:
   workflow_dispatch:
@@ -16,6 +20,9 @@ on:
   push:
     branches:
       - master
+      - main
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-dev'
     paths-ignore:
       - ".github/**"
       - "docs/**"

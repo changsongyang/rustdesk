@@ -100,61 +100,68 @@ fn do_hook(tx: Sender<String>) -> ResultType<(HHOOK, HHOOK)> {
 pub fn hook() -> ResultType<()> {
     let (tx, rx) = channel();
     std::thread::spawn(move || {
-        let hook_keyboard;
-        let hook_mouse;
-        unsafe {
-            match do_hook(tx.clone()) {
-                Ok(hooks) => {
-                    hook_keyboard = hooks.0;
-                    hook_mouse = hooks.1;
+        // 添加 panic 保护，确保即使发生 panic 也能正确清理状态
+        let _ = std::panic::catch_unwind(move || {
+            let hook_keyboard;
+            let hook_mouse;
+            unsafe {
+                match do_hook(tx.clone()) {
+                    Ok(hooks) => {
+                        hook_keyboard = hooks.0;
+                        hook_mouse = hooks.1;
+                    }
+                    Err(e) => {
+                        allow_err!(tx.send(format!("Unexpected err when hook {}", e)));
+                        return;
+                    }
                 }
-                Err(e) => {
-                    // Fatal error
-                    allow_err!(tx.send(format!("Unexpected err when hook {}", e)));
+                if hook_keyboard.is_null() {
                     return;
                 }
-            }
-            if hook_keyboard.is_null() {
-                return;
-            }
 
-            let mut msg = MSG {
-                hwnd: NULL as _,
-                message: 0 as _,
-                wParam: 0 as _,
-                lParam: 0 as _,
-                time: 0 as _,
-                pt: POINT {
-                    x: 0 as _,
-                    y: 0 as _,
-                },
-            };
-            while FALSE != GetMessageA(&mut msg, NULL as _, 0, 0) {
-                if msg.message == WM_USER_EXIT_HOOK {
-                    break;
+                let mut msg = MSG {
+                    hwnd: NULL as _,
+                    message: 0 as _,
+                    wParam: 0 as _,
+                    lParam: 0 as _,
+                    time: 0 as _,
+                    pt: POINT {
+                        x: 0 as _,
+                        y: 0 as _,
+                    },
+                };
+                while FALSE != GetMessageA(&mut msg, NULL as _, 0, 0) {
+                    if msg.message == WM_USER_EXIT_HOOK {
+                        break;
+                    }
+
+                    TranslateMessage(&msg);
+                    DispatchMessageA(&msg);
                 }
 
-                TranslateMessage(&msg);
-                DispatchMessageA(&msg);
-            }
+                if FALSE == UnhookWindowsHookEx(hook_keyboard as _) {
+                    log::error!(
+                        "Failed UnhookWindowsHookEx keyboard, error {}",
+                        Error::last_os_error()
+                    );
+                }
 
-            if FALSE == UnhookWindowsHookEx(hook_keyboard as _) {
-                // Fatal error
-                log::error!(
-                    "Failed UnhookWindowsHookEx keyboard, error {}",
-                    Error::last_os_error()
-                );
-            }
+                if FALSE == UnhookWindowsHookEx(hook_mouse as _) {
+                    log::error!(
+                        "Failed UnhookWindowsHookEx mouse, error {}",
+                        Error::last_os_error()
+                    );
+                }
 
-            if FALSE == UnhookWindowsHookEx(hook_mouse as _) {
-                // Fatal error
-                log::error!(
-                    "Failed UnhookWindowsHookEx mouse, error {}",
-                    Error::last_os_error()
-                );
+                *CUR_HOOK_THREAD_ID.lock().unwrap() = 0;
             }
-
-            *CUR_HOOK_THREAD_ID.lock().unwrap() = 0;
+        });
+        
+        // 确保线程状态被重置，即使发生 panic
+        let mut cur_hook_thread_id = CUR_HOOK_THREAD_ID.lock().unwrap();
+        if *cur_hook_thread_id != 0 {
+            log::warn!("Hook thread terminated unexpectedly, resetting thread ID");
+            *cur_hook_thread_id = 0;
         }
     });
 

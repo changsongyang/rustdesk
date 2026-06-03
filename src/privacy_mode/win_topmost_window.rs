@@ -11,6 +11,7 @@ use winapi::{
         minwindef::FALSE,
         ntdef::{HANDLE, NULL},
         windef::HWND,
+        winerror::WAIT_TIMEOUT,
     },
     um::{
         handleapi::CloseHandle,
@@ -48,7 +49,16 @@ impl WindowHandlers {
     fn reset(&mut self) {
         unsafe {
             if self.hprocess != 0 {
+                log::debug!("Terminating privacy window process");
                 let _res = TerminateProcess(self.hprocess as _, 0);
+                // 等待进程结束，最多等待 5 秒
+                let wait_result = winapi::um::synchapi::WaitForSingleObject(
+                    self.hprocess as _,
+                    5000,
+                );
+                if wait_result == WAIT_TIMEOUT {
+                    log::warn!("Timeout waiting for privacy window process to terminate");
+                }
                 CloseHandle(self.hprocess as _);
             }
             self.hprocess = 0;
@@ -85,6 +95,8 @@ impl PrivacyMode for PrivacyModeImpl {
     }
 
     fn turn_on_privacy(&mut self, conn_id: i32) -> ResultType<bool> {
+        log::info!("Attempting to turn on privacy mode II for connection {}", conn_id);
+        
         if self.check_on_conn_id(conn_id)? {
             log::debug!("Privacy mode of conn {} is already on", conn_id);
             return Ok(true);
@@ -93,9 +105,13 @@ impl PrivacyMode for PrivacyModeImpl {
         let exe_file = std::env::current_exe()?;
         if let Some(cur_dir) = exe_file.parent() {
             if !cur_dir.join("WindowInjection.dll").exists() {
-                return Ok(false);
+                log::error!("WindowInjection.dll not found in application directory");
+                bail!(
+                    "Privacy mode II requires WindowInjection.dll to be present in the application directory"
+                );
             }
         } else {
+            log::error!("Invalid exe parent for {}", exe_file.to_string_lossy());
             bail!(
                 "Invalid exe parent for {}",
                 exe_file.to_string_lossy().as_ref()
@@ -103,21 +119,39 @@ impl PrivacyMode for PrivacyModeImpl {
         }
 
         if self.handlers.is_default() {
-            log::info!("turn_on_privacy, dll not found when started, try start");
-            self.start()?;
-            std::thread::sleep(std::time::Duration::from_millis(1_000));
+            log::info!("Starting privacy window broker process");
+            match self.start() {
+                Ok(_) => {
+                    log::info!("Privacy window broker process started successfully");
+                    std::thread::sleep(std::time::Duration::from_millis(1_000));
+                }
+                Err(e) => {
+                    log::error!("Failed to start privacy window broker: {}", e);
+                    return Err(e);
+                }
+            }
         }
 
-        let hwnd = wait_find_privacy_hwnd(0)?;
+        let hwnd = wait_find_privacy_hwnd(5_000)?;
         if hwnd.is_null() {
+            log::error!("Failed to find privacy window after startup");
             bail!("No privacy window created");
         }
-        super::win_input::hook()?;
+        
+        match super::win_input::hook() {
+            Ok(_) => log::debug!("Input hook enabled successfully"),
+            Err(e) => {
+                log::error!("Failed to enable input hook: {}", e);
+                return Err(e);
+            }
+        }
+        
         unsafe {
             ShowWindow(hwnd as _, SW_SHOW);
         }
         self.conn_id = conn_id;
         self.hwnd = hwnd as _;
+        log::info!("Privacy mode II activated successfully for connection {}", conn_id);
         Ok(true)
     }
 
@@ -366,15 +400,31 @@ unsafe fn inject_dll<'a>(hproc: HANDLE, hthread: HANDLE, dll_file: &'a str) -> R
 pub(super) fn wait_find_privacy_hwnd(msecs: u128) -> ResultType<HWND> {
     let tm_begin = Instant::now();
     let wndname = CString::new(PRIVACY_WINDOW_NAME)?;
+    
+    // 设置最大超时时间为 30 秒，防止无限等待
+    let max_timeout = std::cmp::max(msecs, 30_000);
+    
     loop {
         unsafe {
             let hwnd = FindWindowA(NULL as _, wndname.as_ptr() as _);
             if !hwnd.is_null() {
+                log::debug!(
+                    "Found privacy window after {} ms",
+                    tm_begin.elapsed().as_millis()
+                );
                 return Ok(hwnd);
             }
         }
 
-        if msecs == 0 || tm_begin.elapsed().as_millis() > msecs {
+        let elapsed = tm_begin.elapsed().as_millis();
+        if msecs == 0 || elapsed > msecs {
+            if elapsed > max_timeout {
+                bail!(
+                    "Timeout waiting for privacy window after {} ms (max: {} ms)",
+                    elapsed,
+                    max_timeout
+                );
+            }
             return Ok(NULL as _);
         }
 
